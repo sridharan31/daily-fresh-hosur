@@ -221,7 +221,7 @@ const CartScreen: React.FC = () => {
                 onDeliveryInfoPress={() => {
                   Alert.alert(
                     'Delivery Information',
-                    `Free delivery on orders above ${priceCalculator.formatPrice(100)}.\n\nStandard delivery: AED 5\nExpress delivery: AED 15`,
+                    `Free delivery on orders above ${priceCalculator.formatPrice(500)}.\n\nStandard delivery: ₹25\nExpress delivery: ₹50`,
                     [{text: 'OK'}]
                   );
                 }}

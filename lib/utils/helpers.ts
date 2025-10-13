@@ -14,8 +14,11 @@ export const deviceHelpers = {
 };
 
 export const formatHelpers = {
-  formatPrice: (amount: number, currency: string = 'AED'): string => {
-    return `${currency} ${amount.toFixed(2)}`;
+  formatPrice: (amount: number, currency: string = 'INR'): string => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount);
   },
   
   formatDate: (date: string | Date, format: 'short' | 'long' | 'time' = 'short'): string => {

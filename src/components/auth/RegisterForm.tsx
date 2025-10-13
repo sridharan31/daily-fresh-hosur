@@ -17,7 +17,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { z } from 'zod';
 
-import { useAuthRegister } from '../../hooks/useAuthForms';
+import { useAuthRegister } from '../../hooks/useAuthFormsSupabase';
 
 // Zod validation schema for registration
 const registerSchema = z

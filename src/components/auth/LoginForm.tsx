@@ -18,7 +18,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { z } from 'zod';
 
-import { useAuthLogin, useForgotPassword } from '../../hooks/useAuthForms';
+import { useAuthLogin, useAuthForgotPassword } from '../../hooks/useAuthFormsSupabase';
 
 // Zod validation schema for login
 const loginSchema = z.object({
@@ -59,7 +59,7 @@ export const LoginForm: React.FC = () => {
   
   // Use the enhanced auth hooks
   const loginMutation = useAuthLogin();
-  const forgotPasswordMutation = useForgotPassword();
+  const forgotPasswordMutation = useAuthForgotPassword();
 
   const {
     control,

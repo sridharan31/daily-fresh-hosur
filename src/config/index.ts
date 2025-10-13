@@ -76,7 +76,7 @@ export const APP_CONSTANTS = {
   
   // Business rules
   BUSINESS_RULES: {
-    MIN_ORDER_VALUE: 20, // AED
+    MIN_ORDER_VALUE: 100, // INR
     MAX_CART_ITEMS: Config.MAX_CART_ITEMS,
     FREE_DELIVERY_THRESHOLD: Config.FREE_DELIVERY_THRESHOLD,
     ORDER_CANCELLATION_WINDOW: Config.ORDER_CANCELLATION_WINDOW,
@@ -151,21 +151,21 @@ export const FEATURE_FLAGS = {
   ENABLE_SMART_RECOMMENDATIONS: true,
 } as const;
 
-// Regional settings for UAE
+// Regional settings for India (Tamil Nadu)
 export const REGIONAL_SETTINGS = {
-  COUNTRY: 'AE',
-  COUNTRY_NAME: 'United Arab Emirates',
-  CURRENCY: 'AED',
-  CURRENCY_SYMBOL: 'د.إ',
+  COUNTRY: 'IN',
+  COUNTRY_NAME: 'India',
+  CURRENCY: 'INR',
+  CURRENCY_SYMBOL: '₹',
   LANGUAGE: 'en',
-  TIMEZONE: 'Asia/Dubai',
+  TIMEZONE: 'Asia/Kolkata',
   DATE_FORMAT: 'DD/MM/YYYY',
-  TIME_FORMAT: '24h',
-  FIRST_DAY_OF_WEEK: 0, // Sunday
-  WEEKEND_DAYS: [5, 6], // Friday, Saturday
-  PHONE_CODE: '+971',
-  EMERGENCY_NUMBER: '999',
-  VAT_RATE: 0.05, // 5%
+  TIME_FORMAT: '12h',
+  FIRST_DAY_OF_WEEK: 1, // Monday
+  WEEKEND_DAYS: [0, 6], // Sunday, Saturday
+  PHONE_CODE: '+91',
+  EMERGENCY_NUMBER: '112',
+  VAT_RATE: 0.18, // 18% GST
   DISTANCE_UNIT: 'km',
   WEIGHT_UNIT: 'kg',
 } as const;

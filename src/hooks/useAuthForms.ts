@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
+import authService from '../../lib/services/authService';
 
-// Enhanced auth hooks that work with the auth forms
+// Enhanced auth hooks that work with Supabase authentication
 interface LoginCredentials {
   email: string;
   password: string;

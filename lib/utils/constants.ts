@@ -1,38 +1,38 @@
  // app/utils/constants.ts
 export const APP_CONFIG = {
-  NAME: 'FreshMart',
+  NAME: 'Daily Fresh Hosur',
   VERSION: '1.0.0',
-  BUNDLE_ID: 'com.freshmart.grocery',
+  BUNDLE_ID: 'com.dailyfresh.hosur',
   STORE_URL: {
-    IOS: 'https://apps.apple.com/app/freshmart',
-    ANDROID: 'https://play.google.com/store/apps/details?id=com.freshmart.grocery',
+    IOS: 'https://apps.apple.com/app/daily-fresh-hosur',
+    ANDROID: 'https://play.google.com/store/apps/details?id=com.dailyfresh.hosur',
   },
-  SUPPORT_EMAIL: 'support@freshmart.ae',
-  SUPPORT_PHONE: '+971-4-123-4567',
-  WEBSITE: 'https://freshmart.ae',
-  PRIVACY_POLICY: 'https://freshmart.ae/privacy',
-  TERMS_OF_SERVICE: 'https://freshmart.ae/terms',
+  SUPPORT_EMAIL: 'support@dailyfreshhosur.com',
+  SUPPORT_PHONE: '+91-8765-432-109',
+  WEBSITE: 'https://dailyfreshhosur.com',
+  PRIVACY_POLICY: 'https://dailyfreshhosur.com/privacy',
+  TERMS_OF_SERVICE: 'https://dailyfreshhosur.com/terms',
 };
 
-export const UAE_CONFIG = {
-  CURRENCY: 'AED',
-  VAT_RATE: 0.05, // 5%
-  FREE_DELIVERY_THRESHOLD: 100,
-  EXPRESS_DELIVERY_CHARGE: 15,
-  STANDARD_DELIVERY_CHARGE: 5,
+export const INDIA_CONFIG = {
+  CURRENCY: 'INR',
+  GST_RATE: 0.18, // 18%
+  FREE_DELIVERY_THRESHOLD: 500,
+  EXPRESS_DELIVERY_CHARGE: 50,
+  STANDARD_DELIVERY_CHARGE: 25,
   MAX_DELIVERY_DISTANCE: 25, // km
-  SUPPORTED_EMIRATES: [
-    'Abu Dhabi',
-    'Dubai',
-    'Sharjah',
-    'Ajman',
-    'Umm Al Quwain',
-    'Ras Al Khaimah',
-    'Fujairah',
+  SUPPORTED_DISTRICTS: [
+    'Hosur',
+    'Krishnagiri',
+    'Dharmapuri',
+    'Salem',
+    'Erode',
+    'Coimbatore',
+    'Tirupur',
   ],
   LANGUAGES: [
     {code: 'en', name: 'English', nativeName: 'English'},
-    {code: 'ar', name: 'Arabic', nativeName: 'العربية'},
+    {code: 'ta', name: 'Tamil', nativeName: 'தமிழ்'},
   ],
 };
 

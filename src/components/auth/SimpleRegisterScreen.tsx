@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 
-import { useAuthRegister } from '../../hooks/useAuthForms';
+import { useAuthRegister } from '../../hooks/useAuthFormsSupabase';
 import { DailyFreshLogo } from '../branding/DailyFreshLogo';
 
 interface SimpleRegisterScreenProps {

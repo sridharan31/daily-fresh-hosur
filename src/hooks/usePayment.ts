@@ -342,8 +342,8 @@ const usePayment = (): UsePaymentReturn => {
     return method?.icon || 'payment';
   }, []);
 
-  const formatAmount = useCallback((amount: number, currency: string = 'AED'): string => {
-    return new Intl.NumberFormat('en-AE', {
+  const formatAmount = useCallback((amount: number, currency: string = 'INR'): string => {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency,
     }).format(amount);

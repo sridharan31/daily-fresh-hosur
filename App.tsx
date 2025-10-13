@@ -1,10 +1,13 @@
-// App.tsx (Enhanced version with proper initialization)
+// App.tsx - Daily Fresh Hosur E-commerce App with Supabase
 import { NavigationContainer } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
+import 'react-native-url-polyfill/auto';
+import 'react-native-get-random-values';
+
 // Import global CSS for web
 if (Platform.OS === 'web') {
   require('./global.css');
@@ -14,8 +17,9 @@ import { persistor, store } from './lib/store';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef } from './src/navigation/navigationUtils';
 
-// Services
-import initializationService from './lib/services/initializationService';
+// Supabase Services
+import authService from './lib/services/authService';
+import localizationService from './lib/services/localizationService';
 
 // Providers
 import ReactQueryProvider from './lib/providers/ReactQueryProvider';
