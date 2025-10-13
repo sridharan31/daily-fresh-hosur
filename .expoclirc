@@ -1,0 +1,13 @@
+{
+  "web": {
+    "ignoreFiles": [
+      "**/*.config.{js,ts,tsx}",
+      "**/config/**",
+      "**/hooks/**",
+      "**/services/**",
+      "**/store/**",
+      "**/types/**",
+      "**/utils/**"
+    ]
+  }
+}

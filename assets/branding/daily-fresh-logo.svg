@@ -1,0 +1,33 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="40" cy="40" r="35" fill="#4CAF50" opacity="0.1"/>
+  
+  <!-- Main Logo Icon -->
+  <g transform="translate(15, 15)">
+    <!-- Leaf -->
+    <path d="M25 5 C35 5, 45 15, 45 25 C45 35, 35 45, 25 45 C20 40, 20 30, 20 25 C20 15, 22 5, 25 5" fill="#4CAF50"/>
+    <path d="M25 5 C20 8, 18 15, 18 25 C18 30, 20 35, 22 40" stroke="#2E7D32" stroke-width="2" fill="none"/>
+    
+    <!-- Apple -->
+    <circle cx="30" cy="30" r="12" fill="#FF5722"/>
+    <ellipse cx="30" cy="28" rx="8" ry="10" fill="#FF6B47"/>
+    <path d="M30 18 Q32 16, 34 18" stroke="#4CAF50" stroke-width="2" fill="none"/>
+    
+    <!-- Carrot -->
+    <path d="M15 25 L10 45 L20 45 Z" fill="#FF9800"/>
+    <path d="M13 25 L17 25" stroke="#4CAF50" stroke-width="2"/>
+    <path d="M12 23 L18 23" stroke="#4CAF50" stroke-width="2"/>
+    
+    <!-- Sparkle/Fresh indicators -->
+    <circle cx="8" cy="15" r="1.5" fill="#FFD700"/>
+    <circle cx="42" cy="12" r="1" fill="#FFD700"/>
+    <circle cx="45" cy="35" r="1.2" fill="#FFD700"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="85" y="35" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#2E7D32">Daily Fresh</text>
+  <text x="85" y="55" font-family="Arial, sans-serif" font-size="16" font-weight="500" fill="#4CAF50">Hosur</text>
+  
+  <!-- Tagline -->
+  <text x="85" y="70" font-family="Arial, sans-serif" font-size="10" fill="#666">Fresh • Fast • Delivered</text>
+</svg>

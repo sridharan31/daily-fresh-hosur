@@ -1,0 +1,127 @@
+Card.tsx
+Header.tsx
+Input.tsx
+Loader.tsx
+Modal.tsx
+
+DeliveryMap
+SlotCalendar
+TimeSlotGrid
+PaymentForm
+PaymentMethods
+PaymentStatus
+
+
+ProductCard.tsx
+ProductList.tsx
+ProductFilter.tsx
+ProductSearch.tsx
+
+
+
+CartItem.tsx
+CartSummary.tsx
+CouponInput.tsx
+
+config/ 
+index.ts
+apiConfig.ts
+paymentConfig.ts
+pushConfig.ts
+
+
+hooks/             
+useAuth.ts
+useCart.ts
+useLocation.ts
+usePayment.ts
+useDeliverySlots.ts
+useNotifications.ts
+useAdmin.ts
+
+
+navigation/         
+AuthNavigator.tsx
+AdminNavigator.tsx
+
+services/          
+api/
+productService.ts
+cartService.ts
+orderService.ts
+adminService.ts
+notificationService.ts
+
+
+
+location/"
+echo "│   │   │   ├── locationService.ts"
+echo "│   │   │   └── geocoding.ts"
+
+
+echo "│   │   └── push/"
+echo "│   │       ├── pushNotificationService.ts"
+echo "│   │       └── deepLinking.ts"
+
+
+
+echo "│   ├── store/               # Redux store (.ts)"
+echo "│   │   ├── index.ts"
+echo "│   │   ├── store.ts"
+echo "│   │   ├── slices/"
+echo "│   │   │   ├── authSlice.ts"
+echo "│   │   │   ├── productSlice.ts"
+echo "│   │   │   ├── cartSlice.ts"
+echo "│   │   │   ├── orderSlice.ts"
+echo "│   │   │   ├── deliverySlice.ts"
+echo "│   │   │   ├── userSlice.ts"
+echo "│   │   │   └── adminSlice.ts"
+echo "│   │   └── middleware/"
+echo "│   │       ├── authMiddleware.ts"
+echo "│   │       └── apiMiddleware.ts"
+
+
+
+echo "│   ├── utils/               # Utilities (.ts)"
+echo "│   │   ├── constants.ts"
+echo "│   │   ├── helpers.ts"
+echo "│   │   ├── validators.ts"
+echo "│   │   ├── formatters.ts"
+echo "│   │   ├── dateUtils.ts"
+echo "│   │   ├── imageUtils.ts"
+echo "│   │   └── errorHandler.ts"
+
+
+Admin Flow
+Admin Dashboard (Drawer)
+├── Dashboard (Tab)
+├── Products (Tab)
+│   ├── Add Product (Modal)
+│   ├── Edit Product
+│   ├── Product Details
+│   ├── Category Management
+│   └── Bulk Update (Modal)
+├── Orders (Tab)
+│   ├── Order Details
+│   ├── Order Tracking
+│   └── Refund Management
+├── Customers (Tab)
+│   ├── Customer Details
+│   ├── Communication
+│   └── Loyalty Management
+├── Inventory (Tab)
+│   ├── Stock Alerts
+│   ├── Supplier Management
+│   └── Stock Movement
+└── Analytics (Tab)
+    ├── Sales Reports
+    ├── Customer Reports
+    ├── Product Reports
+    └── Delivery Reports
+
+
+
+
+
+
+

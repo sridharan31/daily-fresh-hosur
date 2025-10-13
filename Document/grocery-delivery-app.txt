@@ -1,0 +1,177 @@
+grocery-delivery-app/
+├── app/                     # Main application directory (changed from src)
+│   ├── components/          # React components (.tsx)
+│   │   ├── common/
+│   │   │   ├── Button.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── Loader.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   └── Card.tsx
+│   │   ├── product/
+│   │   │   ├── ProductCard.tsx
+│   │   │   ├── ProductList.tsx
+│   │   │   ├── ProductFilter.tsx
+│   │   │   └── ProductSearch.tsx
+│   │   ├── cart/
+│   │   │   ├── CartItem.tsx
+│   │   │   ├── CartSummary.tsx
+│   │   │   └── CouponInput.tsx
+│   │   ├── delivery/
+│   │   │   ├── SlotPicker.tsx
+│   │   │   ├── SlotCalendar.tsx
+│   │   │   ├── TimeSlotGrid.tsx
+│   │   │   └── DeliveryMap.tsx
+│   │   └── payment/
+│   │       ├── PaymentMethods.tsx
+│   │       ├── PaymentForm.tsx
+│   │       └── PaymentStatus.tsx
+│   │
+│   ├── screens/             # App screens (.tsx)
+│   │   ├── auth/
+│   │   │   ├── LoginScreen.tsx
+│   │   │   ├── RegisterScreen.tsx
+│   │   │   ├── ForgotPasswordScreen.tsx
+│   │   │   ├── OTPVerificationScreen.tsx
+│   │   │   └── ProfileScreen.tsx
+│   │   ├── home/
+│   │   │   ├── HomeScreen.tsx
+│   │   │   ├── CategoryScreen.tsx
+│   │   │   ├── ProductDetailsScreen.tsx
+│   │   │   └── SearchScreen.tsx
+│   │   ├── cart/
+│   │   │   ├── CartScreen.tsx
+│   │   │   ├── CheckoutScreen.tsx
+│   │   │   └── OrderConfirmationScreen.tsx
+│   │   ├── orders/
+│   │   │   ├── OrderHistoryScreen.tsx
+│   │   │   ├── OrderDetailsScreen.tsx
+│   │   │   └── OrderTrackingScreen.tsx
+│   │   ├── delivery/
+│   │   │   ├── DeliverySlotScreen.tsx
+│   │   │   ├── AddressScreen.tsx
+│   │   │   └── DeliveryInstructionsScreen.tsx
+│   │   └── Admin Dashboard (Drawer)
+├── Dashboard (Tab)
+├── Products (Tab)
+│   ├── Add Product (Modal)
+│   ├── Edit Product
+│   ├── Product Details
+│   ├── Category Management
+│   └── Bulk Update (Modal)
+├── Orders (Tab)
+│   ├── Order Details
+│   ├── Order Tracking
+│   └── Refund Management
+├── Customers (Tab)
+│   ├── Customer Details
+│   ├── Communication
+│   └── Loyalty Management
+├── Inventory (Tab)
+│   ├── Stock Alerts
+│   ├── Supplier Management
+│   └── Stock Movement
+└── Analytics (Tab)
+    ├── Sales Reports
+    ├── Customer Reports
+    ├── Product Reports
+    └── Delivery Reports
+│   │
+│   ├── navigation/          # Navigation (.tsx)
+│   │   ├── AppNavigator.tsx
+│   │   ├── AuthNavigator.tsx
+│   │   ├── MainTabNavigator.tsx
+│   │   └── AdminNavigator.tsx
+│   │
+│   ├── services/            # Services (.ts)
+│   │   ├── api/
+│   │   │   ├── authService.ts
+│   │   │   ├── productService.ts
+│   │   │   ├── cartService.ts
+│   │   │   ├── orderService.ts
+│   │   │   ├── deliveryService.ts
+│   │   │   ├── paymentService.ts
+│   │   │   ├── adminService.ts
+│   │   │   ├── notificationService.ts
+│   │   │   └── apiClient.ts
+│   │   ├── payment/
+│   │   │   ├── stripeService.ts
+│   │   │   ├── razorpayService.ts
+│   │   │   ├── paypalService.ts
+│   │   │   └── paymentGateway.ts
+│   │   ├── storage/
+│   │   │   ├── asyncStorage.ts
+│   │   │   ├── secureStorage.ts
+│   │   │   └── cacheService.ts
+│   │   ├── location/
+│   │   │   ├── locationService.ts
+│   │   │   └── geocoding.ts
+│   │   └── push/
+│   │       ├── pushNotificationService.ts
+│   │       └── deepLinking.ts
+│   │
+│   ├── store/               # Redux store (.ts)
+│   │   ├── index.ts
+│   │   ├── store.ts
+│   │   ├── slices/
+│   │   │   ├── authSlice.ts
+│   │   │   ├── productSlice.ts
+│   │   │   ├── cartSlice.ts
+│   │   │   ├── orderSlice.ts
+│   │   │   ├── deliverySlice.ts
+│   │   │   ├── userSlice.ts
+│   │   │   └── adminSlice.ts
+│   │   └── middleware/
+│   │       ├── authMiddleware.ts
+│   │       └── apiMiddleware.ts
+│   │
+│   ├── hooks/               # Custom hooks (.ts)
+│   │   ├── useAuth.ts
+│   │   ├── useCart.ts
+│   │   ├── useLocation.ts
+│   │   ├── usePayment.ts
+│   │   ├── useDeliverySlots.ts
+│   │   ├── useNotifications.ts
+│   │   └── useAdmin.ts
+│   │
+│   ├── types/               # TypeScript definitions (.ts)
+│   │   ├── auth.ts
+│   │   ├── product.ts
+│   │   ├── cart.ts
+│   │   ├── order.ts
+│   │   ├── delivery.ts
+│   │   ├── payment.ts
+│   │   ├── admin.ts
+│   │   ├── navigation.ts
+│   │   └── api.ts
+│   │
+│   ├── utils/               # Utilities (.ts)
+│   │   ├── constants.ts
+│   │   ├── helpers.ts
+│   │   ├── validators.ts
+│   │   ├── formatters.ts
+│   │   ├── dateUtils.ts
+│   │   ├── imageUtils.ts
+│   │   └── errorHandler.ts
+│   │
+│   ├── config/              # Configuration (.ts)
+│   │   ├── index.ts
+│   │   ├── environment.ts
+│   │   ├── apiConfig.ts
+│   │   ├── paymentConfig.ts
+│   │   └── pushConfig.ts
+│   │
+│   └── assets/              # Static assets
+│       ├── images/
+│       ├── icons/
+│       ├── fonts/
+│       └── animations/
+│
+├── android/                 # Android specific files
+├── ios/                     # iOS specific files
+├── __tests__/              # Test files (.test.ts/.test.tsx)
+├── App.tsx                 # Main app component
+├── index.js                # Entry point
+├── tsconfig.json           # TypeScript configuration
+├── package.json
+└── README.md

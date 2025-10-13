@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Header Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .header {
+            background: white;
+            border-bottom: 1px solid #f0f0f0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 60px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .location-text {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-button {
+            position: relative;
+            padding: 8px;
+            border-radius: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .profile-button {
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            background: #4CAF50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #4CAF50;
+            border-radius: 8px;
+            min-width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <span>📍</span>
+            <div>
+                <div style="font-size: 12px; color: #666;">Deliver to</div>
+                <div class="location-text">New York, NY</div>
+            </div>
+        </div>
+        
+        <div class="header-title">Fresh Groceries</div>
+        
+        <div class="header-right">
+            <button class="header-button">
+                🔔
+                <div class="badge">3</div>
+            </button>
+            
+            <button class="header-button">
+                🛒
+                <div class="badge">2</div>
+            </button>
+            
+            <div class="profile-button">G</div>
+        </div>
+    </div>
+    
+    <div style="padding: 20px;">
+        <h2>Header Component Test</h2>
+        <p>This shows how the header should look with:</p>
+        <ul>
+            <li>✅ Location display on the left</li>
+            <li>✅ Title in the center ("Fresh Groceries" instead of "(tabs)")</li>
+            <li>✅ Notifications with badge</li>
+            <li>✅ Cart with badge</li>
+            <li>✅ Profile avatar</li>
+        </ul>
+        <p><strong>The key fix was adding the Stack.Screen configuration for "(tabs)" route in _layout.tsx</strong></p>
+    </div>
+</body>
+</html>

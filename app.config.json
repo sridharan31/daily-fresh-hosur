@@ -1,0 +1,26 @@
+{
+  "web": {
+    "bundler": "metro",
+    "output": "single",  // Changed from "static" to "single"
+    "favicon": "./assets/favicon.png",
+    "build": {
+      "babel": {
+        "include": [
+          "@expo/vector-icons"
+        ]
+      }
+    }
+  },
+  "plugins": [
+    "expo-router"
+  ],
+  "experiments": {
+    "typedRoutes": true
+  },
+  "scheme": "dailyfreshhosur",
+  "name": "Daily Fresh Hosur",
+  "slug": "daily-fresh-hosur",
+  "android": {
+    "package": "com.dailyfresh.hosur"
+  }
+}

@@ -1,0 +1,110 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start Expo Development Server",
+			"type": "shell",
+			"command": "npx expo start",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [],
+			"args": []
+		},
+		{
+			"label": "Start Expo Web Server",
+			"type": "shell",
+			"command": "npx expo start --web --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Start Expo Web Offline",
+			"type": "shell",
+			"command": "npx expo start --web --offline",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Restart Expo Web",
+			"type": "shell",
+			"command": "npx expo start --web --clear --reset-cache",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Start Expo Web Offline",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Fresh Expo Start",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear --reset-cache",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Start Expo Web Fixed",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Final Expo Start",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Complete Expo Start",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Start RCTNetworking Fixed",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Final Fix All Issues",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Image Module Fixed",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "Bridge Config Fixed",
+			"type": "shell",
+			"command": "npx expo start --web --offline --clear",
+			"args": [],
+			"isBackground": true,
+			"group": "build"
+		}
+	]
+}

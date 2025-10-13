@@ -1,0 +1,25 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="40" cy="40" r="38" fill="#4CAF50"/>
+  
+  <!-- Icon Elements -->
+  <g transform="translate(20, 20)">
+    <!-- Leaf -->
+    <path d="M20 5 C28 5, 35 12, 35 20 C35 28, 28 35, 20 35 C16 31, 16 24, 16 20 C16 12, 18 5, 20 5" fill="#FFFFFF" opacity="0.9"/>
+    
+    <!-- Apple -->
+    <circle cx="24" cy="24" r="9" fill="#FF5722"/>
+    <ellipse cx="24" cy="22" rx="6" ry="7" fill="#FF6B47"/>
+    <path d="M24 15 Q26 13, 28 15" stroke="#FFFFFF" stroke-width="1.5" fill="none"/>
+    
+    <!-- Carrot -->
+    <path d="M12 20 L8 32 L16 32 Z" fill="#FF9800"/>
+    <path d="M11 20 L15 20" stroke="#FFFFFF" stroke-width="1.5"/>
+    <path d="M10 18 L16 18" stroke="#FFFFFF" stroke-width="1.5"/>
+    
+    <!-- Fresh sparkles -->
+    <circle cx="6" cy="12" r="1" fill="#FFFFFF"/>
+    <circle cx="32" cy="10" r="0.8" fill="#FFFFFF"/>
+    <circle cx="34" cy="28" r="1" fill="#FFFFFF"/>
+  </g>
+</svg>
