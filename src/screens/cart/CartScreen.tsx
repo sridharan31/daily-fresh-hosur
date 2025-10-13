@@ -1,6 +1,7 @@
 // app/screens/cart/CartScreen.tsx
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -11,7 +12,6 @@ import {
     Text,
     View,
 } from 'react-native';
-import { router } from 'expo-router';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
 import { CartItem, CartSummary, CouponInput } from '../../components/cart';
 import Button from '../../components/common/Button';

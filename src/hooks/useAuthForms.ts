@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import authService from '../../lib/services/authService';
 
 // Enhanced auth hooks that work with Supabase authentication
 interface LoginCredentials {

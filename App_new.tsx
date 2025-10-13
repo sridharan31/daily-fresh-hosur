@@ -1,13 +1,13 @@
 // App.tsx - Daily Fresh Hosur E-commerce App with Supabase
 import { NavigationContainer } from '@react-navigation/native';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-get-random-values';
+import 'react-native-url-polyfill/auto';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
-import 'react-native-url-polyfill/auto';
-import 'react-native-get-random-values';
 
 import { persistor, store } from './lib/store';
 import AppNavigator from './src/navigation/AppNavigator';

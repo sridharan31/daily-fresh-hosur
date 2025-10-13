@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Import test screens
-import SupabaseSignupTestScreen from './src/screens/SupabaseSignupTestScreen';
 import ServiceTestScreen from './src/screens/ServiceTestScreen';
+import SupabaseSignupTestScreen from './src/screens/SupabaseSignupTestScreen';
 
 const TestApp: React.FC = () => {
   const [currentScreen, setCurrentScreen] = React.useState<'menu' | 'signup' | 'services'>('menu');

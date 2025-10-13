@@ -1,5 +1,5 @@
-import { supabase } from '../supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../supabase';
 
 // Tamil translations for the Daily Fresh Hosur app
 export const translations = {

@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  ScrollView,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Import the updated Supabase auth hooks
-import { useAuthRegister, useAuthLogin } from '../hooks/useAuthFormsSupabase';
+import { useAuthLogin, useAuthRegister } from '../hooks/useAuthFormsSupabase';
 
 // Types for authentication results
 interface AuthResult {

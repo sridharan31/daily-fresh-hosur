@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Services
-import productService from '../../lib/services/productService';
 import cartService from '../../lib/services/cartService';
 import localizationService from '../../lib/services/localizationService';
+import productService from '../../lib/services/productService';
 import { Product } from '../../lib/types/database';
 
 // Types

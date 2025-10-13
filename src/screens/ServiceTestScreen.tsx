@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Import all services
 import authService from '../../lib/services/authService';
-import productService from '../../lib/services/productService';
 import cartService from '../../lib/services/cartService';
-import orderService from '../../lib/services/orderService';
-import paymentService from '../../lib/services/paymentService';
 import localizationService from '../../lib/services/localizationService';
+import orderService from '../../lib/services/orderService';
+import productService from '../../lib/services/productService';
 
 interface TestResult {
   name: string;

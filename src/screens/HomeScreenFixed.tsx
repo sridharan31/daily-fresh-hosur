@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  TouchableOpacity, 
-  Image, 
-  ActivityIndicator, 
-  StyleSheet,
-  Dimensions 
+import {
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Services
-import productService, { Product, Category } from '../../lib/services/productService';
 import cartService from '../../lib/services/cartService';
 import localizationService from '../../lib/services/localizationService';
+import productService, { Category, Product } from '../../lib/services/productService';
 
 interface HomeScreenProps {
   navigation: any;

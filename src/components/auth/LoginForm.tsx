@@ -18,7 +18,7 @@ import {
 import Icon from 'react-native-vector-icons/Feather';
 import { z } from 'zod';
 
-import { useAuthLogin, useAuthForgotPassword } from '../../hooks/useAuthFormsSupabase';
+import { useAuthForgotPassword, useAuthLogin } from '../../hooks/useAuthFormsSupabase';
 
 // Zod validation schema for login
 const loginSchema = z.object({
