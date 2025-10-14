@@ -225,7 +225,8 @@ const AdminTabNavigator: React.FC = () => {
               iconName = 'people';
               break;
             case 'Inventory':
-              iconName = 'warehouse';
+              // use material icon that exists across platforms
+              iconName = 'inventory';
               break;
             case 'AdminUsers':
               iconName = 'admin-panel-settings';
@@ -236,20 +237,23 @@ const AdminTabNavigator: React.FC = () => {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#4CAF50',
-        tabBarInactiveTintColor: '#999',
+        tabBarActiveTintColor: '#16A34A',
+        tabBarInactiveTintColor: '#7C8798',
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: 12,
+          fontWeight: '600',
         },
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          height: 60,
-          paddingBottom: 5,
-          paddingTop: 5,
+          backgroundColor: '#ffffff',
+          borderTopWidth: 0,
+          height: 68,
+          elevation: 6,
+          shadowColor: '#000',
+          shadowOpacity: 0.06,
+          shadowOffset: {width: 0, height: -3},
+          shadowRadius: 6,
         },
       })}
     >

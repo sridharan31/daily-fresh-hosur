@@ -7,7 +7,7 @@ if (typeof window !== 'undefined') {
 }
 
 import SimpleLoginScreen from '../src/components/auth/SimpleLoginScreen';
-import AdminDashboardScreen from '../src/screens/admin/AdminDashboardScreen';
+import AdminNavigator from '../src/navigation/AdminNavigator';
 
 export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -84,17 +84,8 @@ export default function AdminDashboard() {
     );
   }
 
-  // Show admin dashboard
-  return (
-    <AdminDashboardScreen 
-      navigation={{
-        navigate: (screen: string, params?: any) => {
-          console.log('Navigating to:', screen, params);
-          router.push(screen);
-        }
-      }}
-    />
-  );
+  // Show admin dashboard with tab navigation
+  return <AdminNavigator />;
 
 }
 

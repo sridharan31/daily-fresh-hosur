@@ -1,13 +1,6 @@
 // src/screens/admin/AdminDashboardScreen.tsx
 import React, { useEffect, useState } from 'react';
-import {
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, Animated } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,6 +13,30 @@ interface NavigationProps {
   navigate: (screen: string, params?: any) => void;
 }
 
+// Simple stats card without complex animations
+const StatsCard: React.FC<{
+  title: string;
+  value: string | number;
+  icon: string;
+  color: string;
+  onPress?: () => void;
+}> = ({ title, value, icon, color, onPress }) => (
+  <TouchableOpacity 
+    activeOpacity={0.8}
+    className="bg-white p-4 rounded-xl border-l-4 shadow-sm mb-3"
+    style={{borderLeftColor: color}}
+    onPress={onPress}
+  >
+    <View className="flex-row justify-between items-center">
+      <View className="flex-1">
+        <Text className="text-sm text-gray-600 mb-1">{title}</Text>
+        <Text className="text-2xl font-bold text-gray-900">{value}</Text>
+      </View>
+      <Icon name={icon} size={32} color={color} />
+    </View>
+  </TouchableOpacity>
+);
+
 const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigation}) => {
   const dispatch = useDispatch<AppDispatch>();
   const {dashboardData, loading: isLoading} = useSelector((state: RootState) => state.admin);
@@ -29,7 +46,7 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
     dispatch(fetchDashboardData(selectedPeriod));
   }, [dispatch, selectedPeriod]);
 
-  const chartConfig = {
+  const chartConfig: any = {
     backgroundColor: '#ffffff',
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
@@ -44,44 +61,17 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
     },
   };
 
-  const renderStatsCard = (
-    title: string, 
-    value: string | number, 
-    icon: string, 
-    color: string, 
-    onPress?: () => void
-  ) => (
-    <TouchableOpacity 
-      style={[styles.statsCard, {borderLeftColor: color}]} 
-      onPress={onPress}
-    >
-      <View style={styles.statsCardContent}>
-        <View>
-          <Text style={styles.statsTitle}>{title}</Text>
-          <Text style={styles.statsValue}>{value}</Text>
-        </View>
-        <Icon name={icon} size={32} color={color} />
-      </View>
-    </TouchableOpacity>
-  );
-
   const renderPeriodSelector = () => (
-    <View style={styles.periodSelector}>
+    <View className="flex-row bg-gray-100 rounded-lg p-1 mx-2">
       {['today', 'week', 'month'].map((period) => (
         <TouchableOpacity
           key={period}
-          style={[
-            styles.periodButton,
-            selectedPeriod === period && styles.activePeriodButton,
-          ]}
+          activeOpacity={0.8}
+          hitSlop={{top:8,left:8,right:8,bottom:8}}
+          className={`flex-1 py-2 px-3 rounded-md items-center ${selectedPeriod === period ? 'bg-green-600' : ''}`}
           onPress={() => setSelectedPeriod(period)}
         >
-          <Text
-            style={[
-              styles.periodButtonText,
-              selectedPeriod === period && styles.activePeriodButtonText,
-            ]}
-          >
+          <Text className={`text-sm font-medium ${selectedPeriod === period ? 'text-white' : 'text-gray-700'}`}>
             {period.charAt(0).toUpperCase() + period.slice(1)}
           </Text>
         </TouchableOpacity>
@@ -91,54 +81,74 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading dashboard...</Text>
+      <View className="flex-1 bg-gray-50">
+        <View className="bg-white px-4 py-6 shadow-sm">
+          <View className="h-8 bg-gray-200 rounded-lg mb-4 animate-pulse" />
+          <View className="flex-row bg-gray-100 rounded-lg p-1">
+            {[1, 2, 3].map((i) => (
+              <View key={i} className="flex-1 h-10 bg-gray-200 rounded-md mx-1 animate-pulse" />
+            ))}
+          </View>
+        </View>
+        <View className="px-4 py-4">
+          {[1, 2, 3, 4].map((i) => (
+            <View key={i} className="bg-white p-4 rounded-xl mb-3 animate-pulse">
+              <View className="flex-row justify-between items-center">
+                <View className="flex-1">
+                  <View className="h-4 bg-gray-200 rounded mb-2 w-24" />
+                  <View className="h-6 bg-gray-200 rounded w-16" />
+                </View>
+                <View className="w-8 h-8 bg-gray-200 rounded" />
+              </View>
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
+    <ScrollView className="flex-1 bg-gray-50">
+      <View className="bg-white px-4 py-6 shadow-sm">
+        <Text className="text-2xl font-bold text-gray-900 mb-4">Admin Dashboard</Text>
         {renderPeriodSelector()}
       </View>
 
       {/* Stats Cards */}
-      <View style={styles.statsGrid}>
-        {renderStatsCard(
-          'Total Orders',
-          dashboardData?.orders?.total || 0,
-          'shopping-cart',
-          '#2196F3',
-          () => navigation.navigate('OrderManagement')
-        )}
-        {renderStatsCard(
-          'Revenue',
-          `₹${dashboardData?.revenue?.total || 0}`,
-          'attach-money',
-          '#4CAF50',
-          () => navigation.navigate('Analytics')
-        )}
-        {renderStatsCard(
-          'Active Users',
-          dashboardData?.users?.active || 0,
-          'people',
-          '#FF9800',
-          () => navigation.navigate('CustomerManagement')
-        )}
-        {renderStatsCard(
-          'Products',
-          dashboardData?.products?.total || 0,
-          'inventory',
-          '#9C27B0',
-          () => navigation.navigate('ProductManagement')
-        )}
+      <View className="px-4 py-4">
+        <StatsCard
+          title="Total Orders"
+          value={dashboardData?.orders?.total || 0}
+          icon="shopping-cart"
+          color="#2196F3"
+          onPress={() => navigation.navigate('OrderManagement')}
+        />
+        <StatsCard
+          title="Revenue"
+          value={`₹${dashboardData?.revenue?.total || 0}`}
+          icon="attach-money"
+          color="#4CAF50"
+          onPress={() => navigation.navigate('Analytics')}
+        />
+        <StatsCard
+          title="Active Users"
+          value={dashboardData?.users?.active || 0}
+          icon="people"
+          color="#FF9800"
+          onPress={() => navigation.navigate('CustomerManagement')}
+        />
+        <StatsCard
+          title="Products"
+          value={dashboardData?.products?.total || 0}
+          icon="inventory"
+          color="#9C27B0"
+          onPress={() => navigation.navigate('ProductManagement')}
+        />
       </View>
 
       {/* Order Status Chart */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Order Status Distribution</Text>
+      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
+        <Text className="text-lg font-bold text-gray-900 mb-4">Order Status Distribution</Text>
         {dashboardData?.orderStatus && (
           <PieChart
             data={[
@@ -183,8 +193,8 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Sales Trend Chart */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Sales Trend</Text>
+      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
+        <Text className="text-lg font-bold text-gray-900 mb-4">Sales Trend</Text>
         {dashboardData?.salesTrend && (
           <LineChart
             data={{
@@ -199,14 +209,13 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
             height={220}
             chartConfig={chartConfig}
             bezier
-            style={styles.chart}
           />
         )}
       </View>
 
       {/* Top Products Chart */}
-      <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>Top Selling Products</Text>
+      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
+                <Text className="text-lg font-bold text-gray-900 mb-4">Top Selling Products</Text>
         {dashboardData?.topProducts && (
           <BarChart
             data={{
@@ -221,7 +230,6 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
             height={220}
             chartConfig={chartConfig}
             verticalLabelRotation={30}
-            style={styles.chart}
             yAxisLabel=""
             yAxisSuffix=""
           />
@@ -229,42 +237,50 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
+      <View className="bg-white mx-4 mb-6 p-4 rounded-xl shadow-sm">
+        <Text className="text-lg font-bold text-gray-900 mb-4">Quick Actions</Text>
+        <View className="flex-row flex-wrap gap-3">
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('ProductManagement', {screen: 'AddProduct'})}
+            activeOpacity={0.85}
+            hitSlop={{top:8,left:8,right:8,bottom:8}}
+            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            onPress={() => navigation.navigate('AddProduct')}
           >
             <Icon name="add-box" size={24} color="#4CAF50" />
-            <Text style={styles.actionButtonText}>Add Product</Text>
+            <Text className="text-xs text-gray-800 mt-2 font-medium">Add Product</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.actionButton}
+            activeOpacity={0.85}
+            hitSlop={{top:8,left:8,right:8,bottom:8}}
+            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
             onPress={() => navigation.navigate('SlotManagement')}
           >
             <Icon name="schedule" size={24} color="#2196F3" />
-            <Text style={styles.actionButtonText}>Manage Slots</Text>
+            <Text className="text-xs text-gray-800 mt-2 font-medium">Manage Slots</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Inventory', {screen: 'LowStock'})}
+            activeOpacity={0.85}
+            hitSlop={{top:8,left:8,right:8,bottom:8}}
+            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            onPress={() => navigation.navigate('Inventory')}
           >
             <Icon name="warning" size={24} color="#FF9800" />
-            <Text style={styles.actionButtonText}>Low Stock</Text>
+            <Text className="text-xs text-gray-800 mt-2 font-medium">Low Stock</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Analytics')}
+            activeOpacity={0.85}
+            hitSlop={{top:8,left:8,right:8,bottom:8}}
+            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            onPress={() => navigation.navigate('Reports')}
           >
             <Icon name="analytics" size={24} color="#9C27B0" />
-            <Text style={styles.actionButtonText}>View Reports</Text>
+            <Text className="text-xs text-gray-800 mt-2 font-medium">View Reports</Text>
           </TouchableOpacity>
         </View>
-      </View>
+        </View>
     </ScrollView>
   );
 };

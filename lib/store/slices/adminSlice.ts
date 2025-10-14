@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import adminService from '../../services/api/adminService';
+import { adminSupabaseService } from '../../services/adminSupabaseService';
 import {
   AdminAnalytics,
   AdminCustomer,
@@ -22,23 +22,8 @@ export const fetchDashboardData = createAsyncThunk<
   'admin/fetchDashboardData',
   async (period = 'today', {rejectWithValue}) => {
     try {
-      const response = await adminService.getDashboardData(period);
-      const data = response.data!;
-      
-      // Transform DashboardData to AdminDashboardData
-      const adminData: AdminDashboardData = {
-        ...data,
-        todayStats: {
-          orders: data.orders.todayOrders || 0,
-          revenue: data.revenue.today || 0,
-        },
-        activeCustomers: data.users.active || 0,
-        lowStockItems: data.products.lowStock || 0,
-        pendingOrders: data.orders.pending || 0,
-        recentOrders: [], // This would need to be fetched separately or included in the API
-      };
-      
-      return adminData;
+      const data = await adminSupabaseService.getDashboardData(period);
+      return data;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch dashboard data');
     }

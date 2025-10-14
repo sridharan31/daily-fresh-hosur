@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { supabase } from '../../lib/supabase';
 import authService from '../../lib/services/api/authService';
 import { ApiResponse } from '../../lib/types/api';
 import { User } from '../../lib/types/auth';
@@ -17,13 +18,24 @@ export const useUserProfile = () => {
   return useQuery({
     queryKey: userQueryKeys.profile(),
     queryFn: async (): Promise<User> => {
-      // This would need to be implemented in your API
-      const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer TOKEN_HERE`,
-        },
-      });
-      return response.json();
+      // Use Supabase auth + profiles table
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { data: profile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        // If profile missing, return basic auth user info
+        return { id: user.id, email: user.email ?? '', firstName: user.user_metadata?.firstName ?? '', lastName: user.user_metadata?.lastName ?? '' } as unknown as User;
+      }
+
+      return profile as User;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (cache time)
@@ -57,9 +69,18 @@ export const useUserOrders = (enabled: boolean = true) => {
   return useQuery({
     queryKey: userQueryKeys.orders(),
     queryFn: async () => {
-      // Replace with actual order service call
-      const response = await fetch('/api/user/orders');
-      return response.json();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
     },
     enabled, // Only fetch when enabled
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -71,9 +92,18 @@ export const useUserAddresses = () => {
   return useQuery({
     queryKey: userQueryKeys.addresses(),
     queryFn: async () => {
-      // Replace with actual address service call
-      const response = await fetch('/api/user/addresses');
-      return response.json();
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      if (authErr) throw authErr;
+      if (!user?.id) return [];
+
+      const { data, error } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_primary', { ascending: false });
+
+      if (error) throw error;
+      return data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

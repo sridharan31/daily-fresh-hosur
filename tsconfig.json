@@ -17,6 +17,7 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "typeRoots": ["./types", "./node_modules/@types"],
+  "types": [],
     "baseUrl": "./app",
     "paths": {
       "@/*": [
