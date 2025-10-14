@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
 // Import CSS for web

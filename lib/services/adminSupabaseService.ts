@@ -1,6 +1,6 @@
 // lib/services/adminSupabaseService.ts
 import { supabase } from '../supabase';
-import { AdminDashboardData, AdminOrder, AdminCustomer, AdminAnalytics } from '../types/admin';
+import { AdminAnalytics, AdminCustomer, AdminDashboardData, AdminOrder } from '../types/admin';
 
 export class AdminSupabaseService {
   // Dashboard Data
