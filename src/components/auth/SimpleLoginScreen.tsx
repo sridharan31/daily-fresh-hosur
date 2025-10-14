@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,7 +11,6 @@ import {
   View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { router } from 'expo-router';
 
 // Import the Supabase authentication hooks
 import { useAuthLogin } from '../../hooks/useAuthFormsSupabase';
