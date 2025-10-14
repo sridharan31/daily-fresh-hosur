@@ -1,106 +1,101 @@
 import { router } from 'expo-router';
-import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
 
 // Import CSS for web
 if (typeof window !== 'undefined') {
   require('../global.css');
 }
 
-import { AppDispatch, RootState } from '../lib/store';
-import { logout } from '../lib/store/slices/authSlice';
-import { DailyFreshLogo } from '../src/components/branding/DailyFreshLogo';
+import SimpleLoginScreen from '../src/components/auth/SimpleLoginScreen';
+import AdminDashboardScreen from '../src/screens/admin/AdminDashboardScreen';
 
 export default function AdminDashboard() {
-  const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const handleLogout = () => {
-    if (confirm('Are you sure you want to logout?')) {
-      dispatch(logout());
-      router.replace('/');
-    }
-  };
+  // Check authentication status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Import authService dynamically to avoid circular dependencies
+        const authService = (await import('../lib/services/authService')).default;
+        const currentUser = await authService.getCurrentUser();
+        
+        console.log('🔍 Admin page auth check:', {
+          currentUser,
+          hasUser: !!currentUser?.user,
+          hasProfile: !!currentUser?.profile,
+          userRole: currentUser?.profile?.role,
+          userMetadataRole: currentUser?.user?.user_metadata?.role
+        });
+        
+        if (currentUser && currentUser.user) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    checkAuth();
+  }, []);
+
+  // Show admin login screen if not authenticated or not admin
+  if (isLoading) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.welcomeSection}>
+          <h1 style={styles.welcomeTitle}>Loading...</h1>
+          <p style={styles.welcomeSubtitle}>Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if user is admin (check both profile and user_metadata)
+  const isAdmin = user?.profile?.role === 'admin' || user?.user?.user_metadata?.role === 'admin';
+  
+  console.log('🔐 Admin access check:', {
+    isAuthenticated,
+    profileRole: user?.profile?.role,
+    metadataRole: user?.user?.user_metadata?.role,
+    isAdmin,
+    shouldShowLogin: !isAuthenticated || !isAdmin
+  });
+
+  if (!isAuthenticated || !isAdmin) {
+    return (
+      <SimpleLoginScreen 
+        onLoginSuccess={() => {
+          console.log('🔐 Admin authenticated successfully');
+          // Refresh the auth state
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Show admin dashboard
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <div style={styles.header}>
-        <DailyFreshLogo size="medium" />
-        <button style={styles.logoutButton} onClick={handleLogout}>
-          <span style={styles.icon}>🔓</span>
-          <span style={styles.logoutText}>Logout</span>
-        </button>
-      </div>
-
-      {/* Welcome Section */}
-      <div style={styles.welcomeSection}>
-        <h1 style={styles.welcomeTitle}>Welcome, Admin!</h1>
-        <p style={styles.welcomeSubtitle}>
-          {user?.email || 'admin@groceryapp.com'}
-        </p>
-        <p style={styles.roleText}>Role: {user?.role || 'admin'}</p>
-      </div>
-
-      {/* Admin Functions */}
-      <div style={styles.adminGrid}>
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>👥</span>
-          <h3 style={styles.cardTitle}>User Management</h3>
-          <p style={styles.cardDescription}>Manage customers and staff</p>
-        </div>
-
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>📦</span>
-          <h3 style={styles.cardTitle}>Product Management</h3>
-          <p style={styles.cardDescription}>Add and edit products</p>
-        </div>
-
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>🛒</span>
-          <h3 style={styles.cardTitle}>Order Management</h3>
-          <p style={styles.cardDescription}>View and process orders</p>
-        </div>
-
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>📊</span>
-          <h3 style={styles.cardTitle}>Analytics</h3>
-          <p style={styles.cardDescription}>Sales and performance data</p>
-        </div>
-
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>🚛</span>
-          <h3 style={styles.cardTitle}>Delivery Management</h3>
-          <p style={styles.cardDescription}>Track deliveries and drivers</p>
-        </div>
-
-        <div style={styles.adminCard}>
-          <span style={styles.cardIcon}>⚙️</span>
-          <h3 style={styles.cardTitle}>Settings</h3>
-          <p style={styles.cardDescription}>App configuration</p>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div style={styles.statsSection}>
-        <h2 style={styles.statsTitle}>Quick Stats</h2>
-        <div style={styles.statsRow}>
-          <div style={styles.statItem}>
-            <p style={styles.statNumber}>142</p>
-            <p style={styles.statLabel}>Total Orders</p>
-          </div>
-          <div style={styles.statItem}>
-            <p style={styles.statNumber}>28</p>
-            <p style={styles.statLabel}>Active Users</p>
-          </div>
-          <div style={styles.statItem}>
-            <p style={styles.statNumber}>₹12,450</p>
-            <p style={styles.statLabel}>Today's Sales</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <AdminDashboardScreen 
+      navigation={{
+        navigate: (screen: string, params?: any) => {
+          console.log('Navigating to:', screen, params);
+          router.push(screen);
+        }
+      }}
+    />
   );
+
 }
 
 const styles = {

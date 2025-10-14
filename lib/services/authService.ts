@@ -51,20 +51,40 @@ class AuthService {
 
       // Insert user data into our users table
       if (authData.user) {
-        const { error: userError } = await supabase
+        console.log('🔄 Attempting to insert user profile into users table...');
+        console.log('User ID:', authData.user.id);
+        console.log('Email:', data.email);
+        
+        const userProfile = {
+          id: authData.user.id,
+          email: data.email,
+          phone: data.phone || null,
+          full_name: data.fullName,
+          role: 'customer',
+          preferred_language: data.preferredLanguage || 'en',
+          is_verified: false
+        };
+        
+        console.log('Profile data to insert:', userProfile);
+        
+        const { data: insertedUser, error: userError } = await supabase
           .from('users')
-          .insert({
-            id: authData.user.id,
-            email: data.email,
-            phone: data.phone || null,
-            full_name: data.fullName,
-            role: 'customer',
-            preferred_language: data.preferredLanguage || 'en',
-            is_verified: false
-          });
+          .insert(userProfile)
+          .select()
+          .single();
 
         if (userError) {
-          console.error('Error inserting user data:', userError);
+          console.error('❌ Error inserting user profile:', userError);
+          console.error('Error details:', {
+            message: userError.message,
+            details: userError.details,
+            hint: userError.hint,
+            code: userError.code
+          });
+          
+          // Don't throw here - auth user is created, we'll handle profile creation later
+        } else {
+          console.log('✅ User profile created successfully:', insertedUser);
         }
       }
 
@@ -85,9 +105,16 @@ class AuthService {
 
       if (error) throw error;
 
-      // Get user profile data
+      // Get user profile data, create if missing
       if (authData.user) {
-        const userData = await this.getUserProfile(authData.user.id);
+        let userData = await this.getUserProfile(authData.user.id);
+        
+        // If no profile exists, create one from auth metadata
+        if (!userData) {
+          console.log('👤 Creating missing user profile from auth metadata');
+          userData = await this.createUserProfileFromAuth(authData.user);
+        }
+        
         return { user: authData.user, session: authData.session, profile: userData };
       }
 
@@ -193,6 +220,11 @@ class AuthService {
         .single();
 
       if (error) {
+        // Don't log as error if user simply doesn't exist
+        if (error.code === 'PGRST116') {
+          console.log('ℹ️ User profile not found in database:', userId);
+          return null;
+        }
         console.error('Error fetching user profile:', error);
         return null;
       }
@@ -201,6 +233,65 @@ class AuthService {
     } catch (error) {
       console.error('Get user profile error:', error);
       return null;
+    }
+  }
+
+  // Create user profile from auth user metadata
+  private async createUserProfileFromAuth(authUser: any): Promise<any> {
+    try {
+      const metadata = authUser.user_metadata || {};
+      const userRole = metadata.role || 'customer';
+      
+      console.log('🆕 Creating user profile:', {
+        id: authUser.id,
+        email: authUser.email,
+        role: userRole,
+        metadata
+      });
+      
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: authUser.id,
+          email: authUser.email,
+          full_name: metadata.full_name || metadata.fullName || authUser.email?.split('@')[0] || 'User',
+          phone: metadata.phone || null,
+          role: userRole,
+          is_verified: authUser.email_confirmed_at ? true : false,
+          preferred_language: metadata.preferred_language || metadata.preferredLanguage || 'en',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating user profile:', error);
+        // Return a minimal profile from metadata if database insert fails
+        return {
+          id: authUser.id,
+          email: authUser.email,
+          full_name: metadata.full_name || 'User',
+          phone: metadata.phone,
+          role: userRole,
+          is_verified: !!authUser.email_confirmed_at,
+          preferred_language: 'en'
+        };
+      }
+
+      console.log('✅ User profile created successfully');
+      return data;
+    } catch (error) {
+      console.error('Create user profile error:', error);
+      // Return minimal profile from auth metadata as fallback
+      const metadata = authUser.user_metadata || {};
+      return {
+        id: authUser.id,
+        email: authUser.email,
+        full_name: metadata.full_name || 'User',
+        phone: metadata.phone,
+        role: metadata.role || 'customer',
+        is_verified: !!authUser.email_confirmed_at,
+        preferred_language: 'en'
+      };
     }
   }
 
@@ -457,6 +548,109 @@ class AuthService {
     } catch (error) {
       console.error('Delete address error:', error);
       throw error;
+    }
+  }
+
+  // Admin-specific sign in that handles unconfirmed emails
+  async adminSignIn(data: SignInData) {
+    try {
+      console.log('🔐 Admin sign in attempt for:', data.email);
+      
+      // First try normal sign in
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password
+      });
+
+      // If error is email not confirmed, handle it specially for admin users
+      if (error && error.message === 'Email not confirmed') {
+        console.log('📧 Email not confirmed, checking if user is admin...');
+        
+        // For admin users, we'll allow login and set up the profile
+        // This is acceptable for admin users in development/staging
+        if (data.email === 'admin@fresh.com') {
+          console.log('✅ Admin email detected, attempting alternative login...');
+          
+          // Try to sign in again - sometimes the first attempt fails but second succeeds
+          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password
+          });
+          
+          if (retryError) {
+            // If still failing, provide a helpful error message
+            throw new Error('Admin email not confirmed. Please use Supabase Dashboard to confirm the email for admin@fresh.com or create a new admin user.');
+          }
+          
+          if (retryData.user) {
+            // Create admin profile if it doesn't exist
+            let userData = await this.getUserProfile(retryData.user.id);
+            if (!userData) {
+              userData = await this.ensureAdminProfile(retryData.user.id, data.email);
+            }
+            return { user: retryData.user, session: retryData.session, profile: userData };
+          }
+        }
+        
+        throw error;
+      }
+
+      if (error) throw error;
+
+      // Get user profile data, create if missing
+      if (authData.user) {
+        let userData = await this.getUserProfile(authData.user.id);
+        
+        // If no profile exists, create one from auth metadata
+        if (!userData) {
+          console.log('👤 Creating missing admin profile from auth metadata');
+          userData = await this.createUserProfileFromAuth(authData.user);
+        }
+        
+        // Verify user is admin
+        if (userData?.role !== 'admin') {
+          throw new Error('Access denied. Admin privileges required.');
+        }
+        
+        console.log('🎉 Admin login successful');
+        return { user: authData.user, session: authData.session, profile: userData };
+      }
+
+      return { user: authData.user, session: authData.session };
+    } catch (error) {
+      console.error('Admin sign in error:', error);
+      throw error;
+    }
+  }
+
+  // Ensure admin profile exists
+  private async ensureAdminProfile(userId: string, email: string) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .upsert({
+          id: userId,
+          email: email,
+          first_name: 'Admin',
+          last_name: 'User',
+          phone: '+919876543210',
+          user_role: 'admin' as any,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating admin profile:', error);
+      } else {
+        console.log('✅ Admin profile created/updated');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Admin profile creation error:', error);
+      return null;
     }
   }
 }

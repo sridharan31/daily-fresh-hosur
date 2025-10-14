@@ -8,18 +8,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
-import { useDispatch, useSelector } from 'react-redux';
+import { router } from 'expo-router';
 
-// Import CSS directly for web
-// if (Platform.OS === 'web') {
-//   require('../../../global.css');
-// }
-
-import { AppDispatch, RootState } from '../../../lib/store';
-import { clearError, loginUser } from '../../../lib/store/slices/authSlice';
+// Import the Supabase authentication hooks
+import { useAuthLogin } from '../../hooks/useAuthFormsSupabase';
 import { DailyFreshLogo } from '../branding/DailyFreshLogo';
 
 interface SimpleLoginScreenProps {
@@ -43,24 +38,33 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [localError, setLocalError] = useState<string | null>(null);
   
-  const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error, isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+  // Use the Supabase authentication hooks instead of Redux
+  const { mutate: login, isPending: isLoading, error: loginError, isSuccess, data: loginData } = useAuthLogin();
 
   // Handle successful authentication and navigation
   useEffect(() => {
-    if (isAuthenticated && user) {
-      console.log('🎉 Login successful, user role:', user.role);
+    if (isSuccess && loginData?.user) {
+      console.log('🎉 Login successful, user data:', loginData.user);
+      console.log('🔍 User role detected:', loginData.user.role);
       
-      // Call the onLoginSuccess callback if provided
-      if (onLoginSuccess) {
-        onLoginSuccess();
+      // Role-based navigation using actual user role from database
+      if (loginData.user.role === 'admin') {
+        console.log('🔐 Admin user detected, redirecting to admin dashboard');
+        router.replace('/admin');
+      } else {
+        console.log('👤 Regular user, redirecting to main app');
+        router.replace('/(tabs)' as any);
       }
       
-      // The AppNavigator will automatically handle role-based navigation
-      // based on the Redux auth state
+      // Call the onLoginSuccess callback if provided (but don't let it override navigation)
+      if (onLoginSuccess) {
+        console.log('📞 Calling onLoginSuccess callback');
+        onLoginSuccess();
+      }
     }
-  }, [isAuthenticated, user, onLoginSuccess]);
+  }, [isSuccess, loginData, onLoginSuccess]);
 
   const validateEmail = (email: string) => {
     if (!email) return 'Email is required';
@@ -108,24 +112,14 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
 
     try {
       console.log('🔐 Attempting login with:', { email });
-      const result = await dispatch(loginUser({ email, password }));
+      setLocalError(null);
       
-      if (loginUser.fulfilled.match(result)) {
-        console.log('✅ Login dispatch successful');
-        // Navigation will be handled by the useEffect hook above
-      } else if (loginUser.rejected.match(result)) {
-        console.error('❌ Login failed:', result.payload);
-        Alert.alert(
-          'Login Failed',
-          result.payload || 'Invalid email or password. Please try again.'
-        );
-      }
+      // Use the Supabase login mutation
+      login({ email, password });
+      
     } catch (error: any) {
       console.error('❌ Login error:', error);
-      Alert.alert(
-        'Login Failed',
-        'An unexpected error occurred. Please try again.'
-      );
+      setLocalError('An unexpected error occurred. Please try again.');
     }
   };
 
@@ -172,12 +166,14 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
           </View>
 
           {/* Error Message */}
-          {error && (
+          {loginError && (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 12, padding: 16, marginBottom: 24 }}>
               <Icon name="alert-circle" size={20} color="#dc2626" />
-              <Text style={{ flex: 1, marginLeft: 12, color: '#dc2626', fontWeight: '500' }}>{error}</Text>
+              <Text style={{ flex: 1, marginLeft: 12, color: '#dc2626', fontWeight: '500' }}>
+                {loginError.message || 'Login failed. Please try again.'}
+              </Text>
               <TouchableOpacity
-                onPress={() => dispatch(clearError())}
+                onPress={() => setLocalError(null)}
                 style={{ padding: 4 }}
               >
                 <Icon name="x" size={16} color="#dc2626" />

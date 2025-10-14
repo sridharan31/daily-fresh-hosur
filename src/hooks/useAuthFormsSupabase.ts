@@ -1,6 +1,22 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import authService from '../../lib/services/authService';
 
+// Database user structure (matches our schema)
+interface DatabaseUser {
+  id: string;
+  email: string;
+  phone?: string;
+  full_name: string;
+  role: 'customer' | 'admin' | 'delivery' | 'vendor';
+  is_verified: boolean;
+  avatar_url?: string;
+  date_of_birth?: string;
+  gender?: string;
+  preferred_language: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Enhanced auth hooks that work with Supabase authentication
 interface LoginCredentials {
   email: string;
@@ -24,6 +40,7 @@ interface AuthResponse {
     firstName: string;
     lastName: string;
     phone?: string;
+    role?: string; // Add role to the interface
   };
   token?: string;
 }
@@ -50,8 +67,17 @@ export const useAuthLogin = () => {
           password: credentials.password
         });
         
-        const profile = result.profile || null;
+        const profile = result.profile as DatabaseUser | null;
         const authUser = result.user;
+        
+        // Extract role from database profile or user metadata
+        const userRole = profile?.role || authUser.user_metadata?.role || 'customer';
+        
+        console.log('🔍 Role extraction:', {
+          dbRole: profile?.role,
+          metadataRole: authUser.user_metadata?.role,
+          finalRole: userRole
+        });
         
         return {
           success: true,
@@ -62,6 +88,7 @@ export const useAuthLogin = () => {
             firstName: profile?.full_name?.split(' ')[0] || authUser.user_metadata?.full_name?.split(' ')[0] || '',
             lastName: profile?.full_name?.split(' ').slice(1).join(' ') || authUser.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
             phone: profile?.phone || authUser.user_metadata?.phone || '',
+            role: userRole, // Use extracted role
           }
         };
       } catch (error: any) {
@@ -353,6 +380,84 @@ export const useUserProfile = () => {
   });
 };
 
+// Admin-specific login hook that handles email confirmation issues
+export const useAdminLogin = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<AuthResponse, AuthError, LoginCredentials>({
+    mutationFn: async (credentials) => {
+      try {
+        const result = await authService.adminSignIn({
+          email: credentials.email,
+          password: credentials.password
+        });
+        
+        const profile = result.profile as DatabaseUser | null;
+        const authUser = result.user;
+        
+        // Extract role from database profile or user metadata
+        const userRole = profile?.role || authUser.user_metadata?.role || 'admin';
+        
+        console.log('🔍 Admin role extraction:', {
+          dbRole: profile?.role,
+          metadataRole: authUser.user_metadata?.role,
+          finalRole: userRole
+        });
+        
+        return {
+          success: true,
+          message: 'Admin login successful',
+          user: {
+            id: authUser.id,
+            email: authUser.email || '',
+            firstName: profile?.full_name?.split(' ')[0] || authUser.user_metadata?.full_name?.split(' ')[0] || 'Admin',
+            lastName: profile?.full_name?.split(' ').slice(1).join(' ') || authUser.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'User',
+            phone: profile?.phone || authUser.user_metadata?.phone || '',
+            role: userRole, // Use extracted role
+          }
+        };
+      } catch (error: any) {
+        console.error('Admin login error:', error);
+        
+        let errorMessage = 'Admin login failed';
+        let errorCode = 'ADMIN_LOGIN_ERROR';
+        
+        if (error.message) {
+          if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'Invalid admin email or password';
+            errorCode = 'INVALID_ADMIN_CREDENTIALS';
+          } else if (error.message.includes('Admin email needs to be confirmed')) {
+            errorMessage = 'Admin email confirmation required. Please contact system administrator.';
+            errorCode = 'ADMIN_EMAIL_NOT_CONFIRMED';
+          } else if (error.message.includes('Access denied')) {
+            errorMessage = 'Access denied. Admin privileges required.';
+            errorCode = 'ACCESS_DENIED';
+          } else {
+            errorMessage = error.message;
+          }
+        }
+        
+        throw {
+          message: errorMessage,
+          code: errorCode,
+        };
+      }
+    },
+    onSuccess: (data) => {
+      if (data.success && data.user) {
+        console.log('🎉 Admin login successful:', data.user.email);
+        // Invalidate and refetch user-related queries
+        queryClient.invalidateQueries({ queryKey: ['user'] });
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
+        queryClient.invalidateQueries({ queryKey: ['admin'] });
+      }
+    },
+    onError: (error) => {
+      console.error('❌ Admin login failed:', error.message);
+    }
+  });
+};
+
 export default {
   useAuthLogin,
   useAuthRegister,
@@ -361,4 +466,5 @@ export default {
   useAuthLogout,
   useAuthStatus,
   useUserProfile,
+  useAdminLogin,
 };

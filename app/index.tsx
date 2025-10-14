@@ -69,15 +69,15 @@ export default function Index() {
   const { user } = useSelector((state: RootState) => state.auth);
 
   const handleLogin = () => {
-    // Check user role and redirect accordingly
-    if (user?.role === 'admin') {
-      console.log('🔑 Admin user detected, redirecting to admin dashboard');
-      router.replace('/admin');
-    } else {
-      // Regular customer user
-      console.log('👤 Customer user detected, redirecting to customer home');
-      router.replace('/(tabs)/home');
-    }
+    // Login success is now handled by SimpleLoginScreen with role-based navigation
+    // No need to redirect here as SimpleLoginScreen handles admin vs customer routing
+    console.log('✅ Login success callback - navigation handled by SimpleLoginScreen');
+  };
+
+  const handleAdminAccess = () => {
+    // Navigate to admin login screen
+    console.log('� Navigating to admin login');
+    router.push('/admin');
   };
 
   const handleGuestAccess = () => {
@@ -100,7 +100,6 @@ export default function Index() {
   if (currentScreen === 'login') {
     return (
       <SimpleLoginScreen 
-        onLoginSuccess={handleLogin}
         onRegisterPress={() => setCurrentScreen('register')}
         onGuestPress={handleGuestAccess}
         showGuestOption={true}
@@ -184,6 +183,16 @@ export default function Index() {
         >
           <Text style={[styles.signInButtonText, { color: currentItem.color }]}>
             Already have an account? Sign In
+          </Text>
+        </TouchableOpacity>
+
+        {/* Admin Access Button */}
+        <TouchableOpacity
+          onPress={handleAdminAccess}
+          style={styles.adminAccessButton}
+        >
+          <Text style={styles.adminAccessText}>
+            Admin Access
           </Text>
         </TouchableOpacity>
       </View>
@@ -295,5 +304,18 @@ const styles = StyleSheet.create({
   signInButtonText: {
     fontSize: 16,
     textAlign: 'center',
+  },
+  adminAccessButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+    marginTop: 10,
+  },
+  adminAccessText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
 });
