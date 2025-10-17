@@ -54,7 +54,7 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
         router.replace('/admin');
       } else {
         console.log('👤 Regular user, redirecting to main app');
-        router.replace('/(tabs)' as any);
+        router.replace('/(tabs)/home' as any);
       }
       
       // Call the onLoginSuccess callback if provided (but don't let it override navigation)

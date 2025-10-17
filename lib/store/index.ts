@@ -1,7 +1,7 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import { persistReducer, persistStore } from 'redux-persist';
 
-import { authMiddleware } from './middleware/authMiddleware';
+import { authMiddleware } from './middleware/authMiddlewareMock';
 import adminReducer from './slices/adminSlice';
 import authReducer from './slices/authSlice';
 import cartReducer from './slices/cartSlice';

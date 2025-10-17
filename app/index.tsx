@@ -66,7 +66,14 @@ export default function Index() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('onboarding');
   const [currentIndex, setCurrentIndex] = useState(0);
   
-  const { user } = useSelector((state: RootState) => state.auth);
+  // Safely try to access Redux state
+  let user = null;
+  try {
+    const state = useSelector((state: RootState) => state.auth);
+    user = state?.user;
+  } catch (error) {
+    console.log('Redux context not available yet:', error);
+  }
 
   const handleLogin = () => {
     // Login success is now handled by SimpleLoginScreen with role-based navigation

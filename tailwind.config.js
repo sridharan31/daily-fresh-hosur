@@ -11,6 +11,48 @@ module.exports = {
     "./web-stubs/**/*.{js,jsx,ts,tsx}"
   ],
   presets: [require("nativewind/preset")],
+  // mode: 'jit',
+  // darkMode: 'class',
+  // future: {
+  //   hoverOnlyWhenSupported: true,
+  // },
+  // experimental: {
+  //   optimizeUniversalDefaults: true,
+  // },
+  // corePlugins: {
+  //   aspectRatio: false, // Disable problematic aspect ratio plugin
+  //   backdropBlur: false,
+  //   backdropBrightness: false,
+  //   backdropContrast: false,
+  //   backdropGrayscale: false,
+  //   backdropHueRotate: false,
+  //   backdropInvert: false,
+  //   backdropOpacity: false,
+  //   backdropSaturate: false,
+  //   backdropSepia: false,
+  //   backgroundAttachment: false,
+  //   mixBlendMode: false,
+  //   isolation: false,
+  //   objectFit: false,
+  //   objectPosition: false,
+  //   overflow: false,
+  //   scrollBehavior: false,
+  //   scrollMargin: false,
+  //   scrollPadding: false,
+  //   scrollSnapAlign: false,
+  //   scrollSnapStop: false,
+  //   scrollSnapType: false,
+  //   touchAction: false,
+  //   userSelect: false,
+  //   resize: false,
+  //   caretColor: false,
+  //   accentColor: false,
+  //   appearance: false,
+  //   cursor: false,
+  //   pointerEvents: false,
+  //   willChange: false,
+  //   content: false,
+  // },
   theme: {
     extend: {
       colors: {

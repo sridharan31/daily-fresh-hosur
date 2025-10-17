@@ -7,13 +7,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../../lib/store';
 import { fetchDashboardData } from '../../../lib/store/slices/adminSlice';
 
-const {width} = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 interface NavigationProps {
   navigate: (screen: string, params?: any) => void;
 }
 
-// Simple stats card without complex animations
+// Simple stats card without complex animations - Pure StyleSheet
 const StatsCard: React.FC<{
   title: string;
   value: string | number;
@@ -23,23 +23,22 @@ const StatsCard: React.FC<{
 }> = ({ title, value, icon, color, onPress }) => (
   <TouchableOpacity 
     activeOpacity={0.8}
-    className="bg-white p-4 rounded-xl border-l-4 shadow-sm mb-3"
-    style={{borderLeftColor: color}}
+    style={[styles.statsCard, { borderLeftColor: color }]}
     onPress={onPress}
   >
-    <View className="flex-row justify-between items-center">
-      <View className="flex-1">
-        <Text className="text-sm text-gray-600 mb-1">{title}</Text>
-        <Text className="text-2xl font-bold text-gray-900">{value}</Text>
+    <View style={styles.statsCardContent}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.statsTitle}>{title}</Text>
+        <Text style={styles.statsValue}>{value}</Text>
       </View>
       <Icon name={icon} size={32} color={color} />
     </View>
   </TouchableOpacity>
 );
 
-const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigation}) => {
+const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const {dashboardData, loading: isLoading} = useSelector((state: RootState) => state.admin);
+  const { dashboardData, loading: isLoading } = useSelector((state: RootState) => state.admin);
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   useEffect(() => {
@@ -53,7 +52,7 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
     decimalPlaces: 0,
     color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-    style: {borderRadius: 16},
+    style: { borderRadius: 16 },
     propsForDots: {
       r: '6',
       strokeWidth: '2',
@@ -62,16 +61,24 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
   };
 
   const renderPeriodSelector = () => (
-    <View className="flex-row bg-gray-100 rounded-lg p-1 mx-2">
+    <View style={styles.periodSelector}>
       {['today', 'week', 'month'].map((period) => (
         <TouchableOpacity
           key={period}
           activeOpacity={0.8}
-          hitSlop={{top:8,left:8,right:8,bottom:8}}
-          className={`flex-1 py-2 px-3 rounded-md items-center ${selectedPeriod === period ? 'bg-green-600' : ''}`}
+          hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+          style={[
+            styles.periodButton,
+            selectedPeriod === period && styles.activePeriodButton,
+          ]}
           onPress={() => setSelectedPeriod(period)}
         >
-          <Text className={`text-sm font-medium ${selectedPeriod === period ? 'text-white' : 'text-gray-700'}`}>
+          <Text
+            style={[
+              styles.periodButtonText,
+              selectedPeriod === period && styles.activePeriodButtonText,
+            ]}
+          >
             {period.charAt(0).toUpperCase() + period.slice(1)}
           </Text>
         </TouchableOpacity>
@@ -81,24 +88,24 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
 
   if (isLoading) {
     return (
-      <View className="flex-1 bg-gray-50">
-        <View className="bg-white px-4 py-6 shadow-sm">
-          <View className="h-8 bg-gray-200 rounded-lg mb-4 animate-pulse" />
-          <View className="flex-row bg-gray-100 rounded-lg p-1">
+      <View style={styles.loadingContainer}>
+        <View style={styles.header}>
+          <View style={styles.loadingPlaceholder} />
+          <View style={styles.periodSelector}>
             {[1, 2, 3].map((i) => (
-              <View key={i} className="flex-1 h-10 bg-gray-200 rounded-md mx-1 animate-pulse" />
+              <View key={i} style={[styles.periodButton, { backgroundColor: '#e5e5e5' }]} />
             ))}
           </View>
         </View>
-        <View className="px-4 py-4">
+        <View style={styles.statsGrid}>
           {[1, 2, 3, 4].map((i) => (
-            <View key={i} className="bg-white p-4 rounded-xl mb-3 animate-pulse">
-              <View className="flex-row justify-between items-center">
-                <View className="flex-1">
-                  <View className="h-4 bg-gray-200 rounded mb-2 w-24" />
-                  <View className="h-6 bg-gray-200 rounded w-16" />
+            <View key={i} style={[styles.statsCard, { backgroundColor: '#e5e5e5' }]}>
+              <View style={styles.statsCardContent}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.loadingPlaceholder} />
+                  <View style={[styles.loadingPlaceholder, { width: '40%', marginTop: 8 }]} />
                 </View>
-                <View className="w-8 h-8 bg-gray-200 rounded" />
+                <View style={[styles.loadingPlaceholder, { width: 32, height: 32, borderRadius: 4 }]} />
               </View>
             </View>
           ))}
@@ -108,14 +115,14 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="bg-white px-4 py-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 mb-4">Admin Dashboard</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Admin Dashboard</Text>
         {renderPeriodSelector()}
       </View>
 
       {/* Stats Cards */}
-      <View className="px-4 py-4">
+      <View style={styles.statsGrid}>
         <StatsCard
           title="Total Orders"
           value={dashboardData?.orders?.total || 0}
@@ -147,8 +154,8 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Order Status Chart */}
-      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
-        <Text className="text-lg font-bold text-gray-900 mb-4">Order Status Distribution</Text>
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>Order Status Distribution</Text>
         {dashboardData?.orderStatus && (
           <PieChart
             data={[
@@ -193,8 +200,8 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Sales Trend Chart */}
-      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
-        <Text className="text-lg font-bold text-gray-900 mb-4">Sales Trend</Text>
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>Sales Trend</Text>
         {dashboardData?.salesTrend && (
           <LineChart
             data={{
@@ -214,8 +221,8 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Top Products Chart */}
-      <View className="bg-white mx-4 mb-4 p-4 rounded-xl shadow-sm">
-                <Text className="text-lg font-bold text-gray-900 mb-4">Top Selling Products</Text>
+      <View style={styles.chartContainer}>
+        <Text style={styles.chartTitle}>Top Selling Products</Text>
         {dashboardData?.topProducts && (
           <BarChart
             data={{
@@ -237,50 +244,50 @@ const AdminDashboardScreen: React.FC<{navigation: NavigationProps}> = ({navigati
       </View>
 
       {/* Quick Actions */}
-      <View className="bg-white mx-4 mb-6 p-4 rounded-xl shadow-sm">
-        <Text className="text-lg font-bold text-gray-900 mb-4">Quick Actions</Text>
-        <View className="flex-row flex-wrap gap-3">
+      <View style={styles.quickActions}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <View style={styles.actionsGrid}>
           <TouchableOpacity
             activeOpacity={0.85}
-            hitSlop={{top:8,left:8,right:8,bottom:8}}
-            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
             onPress={() => navigation.navigate('AddProduct')}
           >
             <Icon name="add-box" size={24} color="#4CAF50" />
-            <Text className="text-xs text-gray-800 mt-2 font-medium">Add Product</Text>
+            <Text style={styles.actionButtonText}>Add Product</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             activeOpacity={0.85}
-            hitSlop={{top:8,left:8,right:8,bottom:8}}
-            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
             onPress={() => navigation.navigate('SlotManagement')}
           >
             <Icon name="schedule" size={24} color="#2196F3" />
-            <Text className="text-xs text-gray-800 mt-2 font-medium">Manage Slots</Text>
+            <Text style={styles.actionButtonText}>Manage Slots</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             activeOpacity={0.85}
-            hitSlop={{top:8,left:8,right:8,bottom:8}}
-            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
             onPress={() => navigation.navigate('Inventory')}
           >
             <Icon name="warning" size={24} color="#FF9800" />
-            <Text className="text-xs text-gray-800 mt-2 font-medium">Low Stock</Text>
+            <Text style={styles.actionButtonText}>Low Stock</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             activeOpacity={0.85}
-            hitSlop={{top:8,left:8,right:8,bottom:8}}
-            className="flex-1 min-w-[45%] bg-white border border-gray-200 p-4 rounded-lg items-center justify-center"
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
             onPress={() => navigation.navigate('Reports')}
           >
             <Icon name="analytics" size={24} color="#9C27B0" />
-            <Text className="text-xs text-gray-800 mt-2 font-medium">View Reports</Text>
+            <Text style={styles.actionButtonText}>View Reports</Text>
           </TouchableOpacity>
         </View>
-        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -292,43 +299,45 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   header: {
     backgroundColor: '#fff',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1f2937',
     marginBottom: 16,
   },
   periodSelector: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f3f4f6',
     borderRadius: 8,
     padding: 4,
+    marginHorizontal: 8,
   },
   periodButton: {
     flex: 1,
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 6,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   activePeriodButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#16a34a',
   },
   periodButtonText: {
     fontSize: 14,
-    color: '#666',
+    color: '#4b5563',
     fontWeight: '500',
   },
   activePeriodButtonText: {
@@ -343,9 +352,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderLeftWidth: 4,
+    marginBottom: 0,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
@@ -356,187 +366,82 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#6b7280',
     marginBottom: 4,
+    fontWeight: '500',
   },
   statsValue: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1f2937',
   },
   chartContainer: {
     backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRadius: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   chartTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1f2937',
     marginBottom: 16,
-  },
-  chart: {
-    marginVertical: 8,
-    borderRadius: 16,
   },
   quickActions: {
     backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderRadius: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1f2937',
     marginBottom: 16,
   },
   actionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   actionButton: {
-    flex: 1,
-    minWidth: '45%',
+    width: '48%',
     backgroundColor: '#f8f9fa',
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#e9ecef',
+    marginBottom: 12,
   },
   actionButtonText: {
     fontSize: 12,
-    color: '#333',
+    color: '#1f2937',
     marginTop: 8,
     textAlign: 'center',
     fontWeight: '500',
   },
-});
-
-export default AdminDashboardScreen; 
-// Example Admin Component: app/screens/admin/AdminDashboardScreen.tsx
-/*
-import React, {useEffect} from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  RefreshControl,
-  StyleSheet,
-} from 'react-native';
-import {useAdmin} from '../../hooks/useAdmin';
-import AdminStatsCard from '../../components/admin/AdminStatsCard';
-import RecentOrdersList from '../../components/admin/RecentOrdersList';
-import QuickActions from '../../components/admin/QuickActions';
-import LoadingScreen from '../../components/common/LoadingScreen';
-
-const AdminDashboardScreen: React.FC = () => {
-  const {
-    dashboardData,
-    loading,
-    error,
-    getDashboardData,
-  } = useAdmin();
-
-  useEffect(() => {
-    getDashboardData();
-  }, [getDashboardData]);
-
-  const handleRefresh = () => {
-    getDashboardData();
-  };
-
-  if (loading && !dashboardData) {
-    return <LoadingScreen />;
-  }
-
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={loading} onRefresh={handleRefresh} />
-      }
-    >
-      {dashboardData && (
-        <>
-          <View style={styles.statsContainer}>
-            <AdminStatsCard
-              title="Today's Orders"
-              value={dashboardData.todayStats.orders.toString()}
-              subtitle={`${dashboardData.todayStats.revenue} AED revenue`}
-              icon="receipt-long"
-              color="#4CAF50"
-            />
-            <AdminStatsCard
-              title="Active Customers"
-              value={dashboardData.activeCustomers.toString()}
-              subtitle="This month"
-              icon="people"
-              color="#2196F3"
-            />
-            <AdminStatsCard
-              title="Low Stock Items"
-              value={dashboardData.lowStockItems.toString()}
-              subtitle="Require attention"
-              icon="warning"
-              color="#FF9800"
-            />
-            <AdminStatsCard
-              title="Pending Orders"
-              value={dashboardData.pendingOrders.toString()}
-              subtitle="Awaiting processing"
-              icon="schedule"
-              color="#F44336"
-            />
-          </View>
-
-          <QuickActions />
-
-          <RecentOrdersList orders={dashboardData.recentOrders} />
-        </>
-      )}
-
-      {error && (
-        <Text style={styles.errorText}>
-          Error loading dashboard: {error}
-        </Text>
-      )}
-    </ScrollView>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    justifyContent: 'space-between',
-  },
-  errorText: {
-    color: '#e74c3c',
-    textAlign: 'center',
-    margin: 20,
+  loadingPlaceholder: {
+    height: 12,
+    backgroundColor: '#e5e5e5',
+    borderRadius: 4,
   },
 });
 
-export default AdminDashboardScreen; '*/
+export default AdminDashboardScreen;

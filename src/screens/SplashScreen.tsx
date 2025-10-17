@@ -1,129 +1,83 @@
-// app/screens/SplashScreen.tsx - Web Compatible Version
-import React, { useEffect, useState } from 'react';
+// app/screens/SplashScreen.tsx - React Native Compatible Version
+import React from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 const SplashScreen: React.FC = () => {
-  const [opacity, setOpacity] = useState(0);
-
-  useEffect(() => {
-    // Simple fade-in effect
-    const timer = setTimeout(() => {
-      setOpacity(1);
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const containerStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: '100vh',
-    width: '100vw',
-    backgroundColor: '#4CAF50',
-    opacity: opacity,
-    transition: 'opacity 1s ease-in-out',
-    paddingTop: '60px',
-    paddingBottom: '60px',
-    boxSizing: 'border-box' as const,
-  };
-
-  const contentStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  };
-
-  const logoContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    marginBottom: '60px',
-  };
-
-  const logoStyle = {
-    fontSize: '100px',
-    marginBottom: '20px',
-  };
-
-  const appNameStyle = {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    color: '#fff',
-    letterSpacing: '2px',
-  };
-
-  const loadingContainerStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-  };
-
-  const loadingTextStyle = {
-    marginTop: '16px',
-    fontSize: '16px',
-    color: '#fff',
-    opacity: 0.9,
-  };
-
-  const footerStyle = {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-  };
-
-  const taglineStyle = {
-    fontSize: '16px',
-    color: '#fff',
-    textAlign: 'center' as const,
-    opacity: 0.9,
-    marginBottom: '8px',
-  };
-
-  const versionStyle = {
-    fontSize: '14px',
-    color: '#fff',
-    opacity: 0.7,
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={contentStyle}>
-        <div style={logoContainerStyle}>
-          <div style={logoStyle}>🥬</div>
-          <div style={appNameStyle}>FreshCart</div>
-        </div>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <Text style={styles.logo}>🥬</Text>
+          <Text style={styles.appName}>FreshCart</Text>
+        </View>
 
-        <div style={loadingContainerStyle}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            border: '4px solid rgba(255,255,255,0.3)',
-            borderTop: '4px solid #fff',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }}></div>
-          <div style={loadingTextStyle}>Loading...</div>
-        </div>
-      </div>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
 
-      <div style={footerStyle}>
-        <div style={taglineStyle}>Fresh groceries at your doorstep</div>
-        <div style={versionStyle}>Version 1.0.0</div>
-      </div>
-
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
-    </div>
+      <View style={styles.footer}>
+        <Text style={styles.tagline}>Fresh groceries at your doorstep</Text>
+        <Text style={styles.version}>Version 1.0.0</Text>
+      </View>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingBottom: 60,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 60,
+  },
+  logo: {
+    fontSize: 100,
+    marginBottom: 20,
+  },
+  appName: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+    letterSpacing: 2,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#fff',
+    opacity: 0.9,
+  },
+  footer: {
+    alignItems: 'center',
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+    opacity: 0.9,
+    marginBottom: 8,
+  },
+  version: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.7,
+  },
+});
 
 export default SplashScreen;

@@ -1,9 +1,8 @@
  import AsyncStorage from '@react-native-async-storage/async-storage';
-import analytics from '@react-native-firebase/analytics';
-import crashlytics from '@react-native-firebase/crashlytics';
 import { createListenerMiddleware, isAnyOf } from '@reduxjs/toolkit';
 // import { NavigationService } from '../../../app/navigation/navigationUtils';
 import Config from '../../../src/config/environment';
+import { FirebaseService } from '../../services/firebase/FirebaseServiceExpo';
 import locationService from '../../services/location/locationService';
 import pushNotificationService from '../../services/push/pushNotificationService';
 import {
@@ -44,8 +43,8 @@ authMiddleware.startListening({
       
       // Set user ID for analytics and crashlytics
       if (Config.ENABLE_ANALYTICS) {
-        await analytics().setUserId(user.id);
-        await analytics().setUserProperties({
+        await FirebaseService.setUserId(user.id);
+        await FirebaseService.setUserProperties({
           user_type: user.role,
           email_verified: user.isEmailVerified.toString(),
           phone_verified: user.isPhoneVerified.toString(),
@@ -54,17 +53,14 @@ authMiddleware.startListening({
         });
         
         // Log login event
-        await analytics().logLogin({
+        await FirebaseService.logEvent('login', {
           method: action.type.includes('login') ? 'email' : 'otp',
         });
       }
       
       if (Config.ENABLE_CRASHLYTICS) {
-        await crashlytics().setUserId(user.id);
-        await crashlytics().setAttributes({
-          role: user.role,
-          email: user.email,
-        });
+        await FirebaseService.setUserId(user.id);
+        await FirebaseService.log(`User login: ${user.role} - ${user.email}`);
       }
       
       // Send FCM token to server for push notifications
@@ -99,7 +95,7 @@ authMiddleware.startListening({
       console.error('Error in auth success handler:', error);
       
       if (Config.ENABLE_CRASHLYTICS) {
-        crashlytics().recordError(error as Error);
+        await FirebaseService.recordError(error as Error);
       }
     }
   },
@@ -117,7 +113,7 @@ authMiddleware.startListening({
     
     // Log auth error to analytics
     if (Config.ENABLE_ANALYTICS) {
-      await analytics().logEvent('auth_error', {
+      await FirebaseService.logEvent('auth_error', {
         error_type: action.type,
         error_message: error,
       });
@@ -125,7 +121,7 @@ authMiddleware.startListening({
     
     // Don't log sensitive auth errors to crashlytics
     if (Config.ENABLE_CRASHLYTICS && !error.includes('password') && !error.includes('credentials')) {
-      crashlytics().log(`Auth error: ${action.type} - ${error}`);
+      await FirebaseService.log(`Auth error: ${action.type} - ${error}`);
     }
   },
 });
@@ -153,16 +149,15 @@ authMiddleware.startListening({
       
       // Clear analytics user data
       if (Config.ENABLE_ANALYTICS) {
-        await analytics().resetAnalyticsData();
-        await analytics().logEvent('logout', {
+        await FirebaseService.logEvent('logout', {
           user_id: user?.id,
           session_duration: user ? Date.now() - new Date(user.createdAt || 0).getTime() : 0,
         });
       }
       
       if (Config.ENABLE_CRASHLYTICS) {
-        await crashlytics().setUserId('');
-        await crashlytics().setAttributes({});
+        await FirebaseService.setUserId('');
+        await FirebaseService.log('User logged out');
       }
       
       // Stop location tracking - with fallback
@@ -209,7 +204,7 @@ authMiddleware.startListening({
         
         // Update analytics user properties
         if (Config.ENABLE_ANALYTICS) {
-          await analytics().setUserProperties({
+          await FirebaseService.setUserProperties({
             email_verified: user.isEmailVerified?.toString() || 'false',
             phone_verified: user.isPhoneVerified?.toString() || 'false',
             preferred_language: (user as any).preferredLanguage || 'en',
@@ -231,7 +226,7 @@ authMiddleware.startListening({
     try {
       // Log registration event
       if (Config.ENABLE_ANALYTICS) {
-        await analytics().logSignUp({
+        await FirebaseService.logEvent('sign_up', {
           method: 'email',
         });
       }

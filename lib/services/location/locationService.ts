@@ -1,7 +1,6 @@
 // src/services/location/locationService.ts
-import { PermissionsAndroid, Platform } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
-import { PERMISSIONS, request, RESULTS } from 'react-native-permissions';
+import { PermissionsService } from '../permissions/PermissionsService';
 
 interface LocationOptions {
   enableHighAccuracy?: boolean;
@@ -68,22 +67,8 @@ class LocationService {
   // Request location permissions
   async requestLocationPermission(): Promise<boolean> {
     try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Access Required',
-            message: 'This app needs to access your location for delivery services',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } else {
-        const result = await request(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
-        return result === RESULTS.GRANTED;
-      }
+      const result = await PermissionsService.requestLocationPermission();
+      return result === 'granted';
     } catch (error) {
       console.error('Location permission error:', error);
       return false;

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 
-// Import CSS for web
-if (typeof window !== 'undefined') {
-  require('../../../global.css');
-}
+// Simple web fallback without HTML tags that could cause errors
+const webSafeElement = (Component: string) => {
+  if (typeof window !== 'undefined') {
+    return Component;
+  }
+  return 'div'; // fallback
+};
 
 interface FilterModalProps {
   visible: boolean;
@@ -112,7 +115,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       <div style={styles.modal}>
         {/* Header */}
         <div style={styles.header}>
-          <h2 style={styles.title}>Filter Products</h2>
+          <div style={{...styles.title, fontSize: '20px', fontWeight: 'bold', margin: 0}}>Filter Products</div>
           <button style={styles.closeButton} onClick={onClose}>
             <span style={styles.closeIcon}>×</span>
           </button>
@@ -122,7 +125,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
         <div style={styles.content}>
           {/* Categories */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Categories</h3>
+            <div style={{...styles.sectionTitle, fontSize: '16px', fontWeight: 'bold', margin: '8px 0'}}>Categories</div>
             <div style={styles.categoryGrid}>
               {CATEGORIES.map((category) => (
                 <button
@@ -141,7 +144,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
           {/* Price Range */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Price Range</h3>
+            <div style={{...styles.sectionTitle, fontSize: '16px', fontWeight: 'bold', margin: '8px 0'}}>Price Range</div>
             <div style={styles.priceGrid}>
               {PRICE_RANGES.map((range, index) => (
                 <button
@@ -160,7 +163,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
           {/* Sort Options */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Sort By</h3>
+            <div style={{...styles.sectionTitle, fontSize: '16px', fontWeight: 'bold', margin: '8px 0'}}>Sort By</div>
             <div style={styles.sortGrid}>
               {SORT_OPTIONS.map((option) => (
                 <button
@@ -179,7 +182,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
 
           {/* Toggle Options */}
           <div style={styles.section}>
-            <h3 style={styles.sectionTitle}>Additional Filters</h3>
+            <div style={{...styles.sectionTitle, fontSize: '16px', fontWeight: 'bold', margin: '8px 0'}}>Additional Filters</div>
             <div style={styles.togglesContainer}>
               <label style={styles.toggleItem}>
                 <input

@@ -16,6 +16,7 @@
       }
     },
     "android": {
+      "package": "com.anonymous.grocerydelivery",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

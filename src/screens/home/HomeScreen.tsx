@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 import { router } from 'expo-router';
@@ -128,11 +128,12 @@ export const HomeScreen: React.FC = () => {
 
   // Listen for filter button events from header
   useEffect(() => {
-    const handleFilterEvent = () => {
-      setShowFilterModal(true);
-    };
+    // Web-only event listener - skip on native platforms
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      const handleFilterEvent = () => {
+        setShowFilterModal(true);
+      };
 
-    if (typeof window !== 'undefined') {
       window.addEventListener('openHomeFilters', handleFilterEvent);
       return () => {
         window.removeEventListener('openHomeFilters', handleFilterEvent);

@@ -11,7 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { z } from 'zod';
+import Icon from 'react-native-vector-icons/Feather';
 
 import { useAuthRegister } from '../../hooks/useAuthFormsSupabase';
 import { DailyFreshLogo } from '../branding/DailyFreshLogo';
@@ -23,38 +23,8 @@ interface SimpleRegisterScreenProps {
   onBackPress?: () => void;
 }
 
-// ✅ Zod validation schema
-const registerSchema = z.object({
-  firstName: z
-    .string()
-    .min(2, 'First name must be at least 2 characters')
-    .max(50, 'First name cannot exceed 50 characters'),
-  lastName: z
-    .string()
-    .min(2, 'Last name must be at least 2 characters')
-    .max(50, 'Last name cannot exceed 50 characters'),
-  email: z
-    .string()
-    .email('Please enter a valid email address'),
-  phone: z
-    .string()
-    .regex(/^[0-9]{10}$/, 'Phone number must be 10 digits'),
-  password: z
-    .string()
-    .min(6, 'Password must be at least 6 characters')
-    .max(50, 'Password cannot exceed 50 characters'),
-  confirmPassword: z
-    .string()
-    .min(6, 'Password confirmation required'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterFormData = z.infer<typeof registerSchema>;
-
-// ✅ This component uses StyleSheet with Zod validation
-export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
+// ✅ This component uses INLINE STYLES to test if styling works on Android
+export const SimpleRegisterScreenInlineStyles: React.FC<SimpleRegisterScreenProps> = ({
   onRegisterSuccess,
   onLoginPress,
   showBackToLogin = false,
@@ -68,142 +38,98 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<Partial<Record<keyof RegisterFormData, string>>>({});
+  const [errors, setErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
   
   const registerMutation = useAuthRegister();
 
-  // Real-time validation for individual fields
-  const validateField = (field: keyof RegisterFormData, value: string): string => {
-    try {
-      const formData = {
-        firstName,
-        lastName,
-        email,
-        phone,
-        password,
-        confirmPassword,
-        [field]: value,
-      };
-      registerSchema.parse(formData);
-      return '';
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const fieldError = error.errors.find((err) => err.path[0] === field);
-        return fieldError?.message || '';
-      }
-      return '';
-    }
+  const validateEmail = (email: string): string => {
+    if (!email) return 'Email is required';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Please enter a valid email address';
+    return '';
   };
 
-  // Input change handlers with real-time validation
-  const handleFirstNameChange = (value: string) => {
-    setFirstName(value);
-    const error = validateField('firstName', value);
-    setErrors((prev) => ({
-      ...prev,
-      firstName: error || undefined,
-    }));
+  const validatePassword = (password: string): string => {
+    if (!password) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters long';
+    return '';
   };
 
-  const handleLastNameChange = (value: string) => {
-    setLastName(value);
-    const error = validateField('lastName', value);
-    setErrors((prev) => ({
-      ...prev,
-      lastName: error || undefined,
-    }));
+  const validateName = (name: string, fieldName: string): string => {
+    if (!name) return `${fieldName} is required`;
+    if (name.trim().length < 2) return `${fieldName} must be at least 2 characters`;
+    return '';
   };
 
-  const handleEmailChange = (value: string) => {
-    setEmail(value);
-    const error = validateField('email', value);
-    setErrors((prev) => ({
-      ...prev,
-      email: error || undefined,
-    }));
+  const validatePhone = (phone: string): string => {
+    if (!phone) return 'Phone is required';
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(phone.replace(/\D/g, ''))) return 'Please enter a valid 10-digit phone number';
+    return '';
   };
 
-  const handlePhoneChange = (value: string) => {
-    setPhone(value);
-    const error = validateField('phone', value);
-    setErrors((prev) => ({
-      ...prev,
-      phone: error || undefined,
-    }));
+  const validateConfirmPassword = (confirm: string, pass: string): string => {
+    if (!confirm) return 'Please confirm your password';
+    if (confirm !== pass) return 'Passwords do not match';
+    return '';
   };
 
-  const handlePasswordChange = (value: string) => {
-    setPassword(value);
-    const error = validateField('password', value);
-    setErrors((prev) => ({
-      ...prev,
-      password: error || undefined,
-    }));
-    // Also validate confirm password if it has a value
-    if (confirmPassword) {
-      const confirmError = validateField('confirmPassword', confirmPassword);
-      setErrors((prev) => ({
-        ...prev,
-        confirmPassword: confirmError || undefined,
-      }));
-    }
-  };
-
-  const handleConfirmPasswordChange = (value: string) => {
-    setConfirmPassword(value);
-    const error = validateField('confirmPassword', value);
-    setErrors((prev) => ({
-      ...prev,
-      confirmPassword: error || undefined,
-    }));
+  const validateForm = (): boolean => {
+    const newErrors: any = {};
+    
+    const firstNameError = validateName(firstName, 'First name');
+    if (firstNameError) newErrors.firstName = firstNameError;
+    
+    const lastNameError = validateName(lastName, 'Last name');
+    if (lastNameError) newErrors.lastName = lastNameError;
+    
+    const emailError = validateEmail(email);
+    if (emailError) newErrors.email = emailError;
+    
+    const phoneError = validatePhone(phone);
+    if (phoneError) newErrors.phone = phoneError;
+    
+    const passwordError = validatePassword(password);
+    if (passwordError) newErrors.password = passwordError;
+    
+    const confirmPasswordError = validateConfirmPassword(confirmPassword, password);
+    if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleRegister = () => {
-    // Validate entire form using Zod
-    const validationResult = registerSchema.safeParse({
-      firstName,
-      lastName,
-      email,
-      phone,
-      password,
-      confirmPassword,
-    });
-
-    if (!validationResult.success) {
-      const formErrors: Partial<Record<keyof RegisterFormData, string>> = {};
-      validationResult.error.errors.forEach((error) => {
-        const field = error.path[0] as keyof RegisterFormData;
-        if (field) {
-          formErrors[field] = error.message;
-        }
-      });
-      setErrors(formErrors);
+    if (!validateForm()) {
       return;
     }
 
-    // If validation passes, proceed with registration
-    registerMutation.mutate(
-      {
-        firstName,
-        lastName,
-        email,
-        phone,
-        password,
+    registerMutation.mutate({ 
+      firstName, 
+      lastName, 
+      email, 
+      phone,
+      password 
+    }, {
+      onSuccess: (result) => {
+        if (result.success && result.user && onRegisterSuccess) {
+          onRegisterSuccess();
+        }
       },
-      {
-        onSuccess: (result) => {
-          if (result.success && result.user && onRegisterSuccess) {
-            onRegisterSuccess();
-          }
-        },
-        onError: (error: any) => {
-          Alert.alert(
-            'Registration Failed',
-            error.message || 'Failed to create account. Please try again.'
-          );
-        },
-      }
-    );
+      onError: (error: any) => {
+        Alert.alert(
+          'Registration Failed',
+          error.message || 'Failed to create account. Please try again.'
+        );
+      },
+    });
   };
 
   return (
@@ -237,13 +163,13 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
           {/* Error Message */}
           {registerMutation.error && (
             <View style={styles.errorContainer}>
-              <Text style={{ marginRight: 12, fontSize: 20 }}>⚠️</Text>
+              <Icon name="alert-circle" size={20} color="#dc2626" />
               <Text style={styles.errorText}>{registerMutation.error.message}</Text>
               <TouchableOpacity
                 onPress={() => registerMutation.reset()}
                 style={styles.errorCloseBtn}
               >
-                <Text style={{ fontSize: 16, color: '#dc2626' }}>✕</Text>
+                <Icon name="x" size={16} color="#dc2626" />
               </TouchableOpacity>
             </View>
           )}
@@ -259,17 +185,15 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                   styles.inputContainer,
                   { borderColor: errors.firstName ? '#fca5a5' : '#e5e7eb' }
                 ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>👤</Text>
-                </View>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="First name"
-                  placeholderTextColor="#9ca3af"
-                  value={firstName}
-                  onChangeText={handleFirstNameChange}
-                  autoCapitalize="words"
-                />
+                  <Icon name="user" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="First name"
+                    placeholderTextColor="#9ca3af"
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    autoCapitalize="words"
+                  />
                 </View>
                 {errors.firstName && <Text style={styles.fieldError}>{errors.firstName}</Text>}
               </View>
@@ -281,17 +205,15 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                   styles.inputContainer,
                   { borderColor: errors.lastName ? '#fca5a5' : '#e5e7eb' }
                 ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>👤</Text>
-                </View>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Last name"
-                  placeholderTextColor="#9ca3af"
-                  value={lastName}
-                  onChangeText={handleLastNameChange}
-                  autoCapitalize="words"
-                />
+                  <Icon name="user" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Last name"
+                    placeholderTextColor="#9ca3af"
+                    value={lastName}
+                    onChangeText={setLastName}
+                    autoCapitalize="words"
+                  />
                 </View>
                 {errors.lastName && <Text style={styles.fieldError}>{errors.lastName}</Text>}
               </View>
@@ -304,15 +226,13 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                 styles.inputContainer,
                 { borderColor: errors.email ? '#fca5a5' : '#e5e7eb' }
               ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>✉️</Text>
-                </View>
+                <Icon name="mail" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   value={email}
-                  onChangeText={handleEmailChange}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -327,15 +247,13 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                 styles.inputContainer,
                 { borderColor: errors.phone ? '#fca5a5' : '#e5e7eb' }
               ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>📱</Text>
-                </View>
+                <Icon name="phone" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter your phone"
                   placeholderTextColor="#9ca3af"
                   value={phone}
-                  onChangeText={handlePhoneChange}
+                  onChangeText={setPhone}
                   keyboardType="phone-pad"
                 />
               </View>
@@ -349,19 +267,17 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                 styles.inputContainer,
                 { borderColor: errors.password ? '#fca5a5' : '#e5e7eb' }
               ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>🔒</Text>
-                </View>
+                <Icon name="lock" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter password"
                   placeholderTextColor="#9ca3af"
                   value={password}
-                  onChangeText={handlePasswordChange}
+                  onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
               {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
@@ -374,19 +290,17 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
                 styles.inputContainer,
                 { borderColor: errors.confirmPassword ? '#fca5a5' : '#e5e7eb' }
               ]}>
-                <View style={styles.iconContainer}>
-                  <Text style={styles.iconText}>🔒</Text>
-                </View>
+                <Icon name="lock" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
                 <TextInput
                   style={styles.textInput}
                   placeholder="Confirm password"
                   placeholderTextColor="#9ca3af"
                   value={confirmPassword}
-                  onChangeText={handleConfirmPasswordChange}
+                  onChangeText={setConfirmPassword}
                   secureTextEntry={!showConfirmPassword}
                 />
                 <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                  <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                  <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
                 </TouchableOpacity>
               </View>
               {errors.confirmPassword && <Text style={styles.fieldError}>{errors.confirmPassword}</Text>}
@@ -418,13 +332,6 @@ export const SimpleRegisterScreen: React.FC<SimpleRegisterScreenProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Back Button */}
-          {showBackToLogin && onBackPress && (
-            <TouchableOpacity onPress={onBackPress} className="items-center py-4 mt-4">
-              <Text className="text-green-600 font-medium">← Back to Login</Text>
-            </TouchableOpacity>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -529,17 +436,6 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginLeft: 0,
   },
-  iconContainer: {
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconText: {
-    fontSize: 20,
-  },
-  eyeIconText: {
-    fontSize: 18,
-  },
   fieldError: {
     color: '#ef4444',
     fontSize: 12,
@@ -577,4 +473,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SimpleRegisterScreen;
+export default SimpleRegisterScreenInlineStyles;

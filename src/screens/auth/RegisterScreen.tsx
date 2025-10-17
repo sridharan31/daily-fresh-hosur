@@ -1,44 +1,32 @@
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Feather';
 
-import { AuthStackParamList } from '../../../lib/types/navigation';
 import { validateConfirmPassword, validateEmail, validatePassword, validators } from '../../../lib/utils/validators';
-import Button from '../../components/common/Button';
-import Card from '../../components/common/Card';
-import Input from '../../components/common/Input';
-import LoadingScreen from '../../components/common/LoadingScreen';
-import { useAuth } from '../../hooks/useAuth';
-import { useTheme } from '../../hooks/useTheme';
-
-type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
+import { DailyFreshLogo } from '../../components/branding/DailyFreshLogo';
+import { useAuthRegister } from '../../hooks/useAuthFormsSupabase';
 
 export const RegisterScreen: React.FC = () => {
-  const navigation = useNavigation<RegisterScreenNavigationProp>();
-  const { register, isLoading, error } = useAuth();
-  const { colors } = useTheme();
-  const styles = createStyles(colors);
-
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-  });
-
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [errors, setErrors] = useState({
     firstName: '',
     lastName: '',
@@ -48,12 +36,16 @@ export const RegisterScreen: React.FC = () => {
     confirmPassword: '',
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const registerMutation = useAuthRegister();
 
-  const updateFormData = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const updateFormData = (field: keyof typeof errors, value: string): void => {
+    if (field === 'firstName') setFirstName(value);
+    else if (field === 'lastName') setLastName(value);
+    else if (field === 'email') setEmail(value);
+    else if (field === 'phone') setPhone(value);
+    else if (field === 'password') setPassword(value);
+    else if (field === 'confirmPassword') setConfirmPassword(value);
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -65,7 +57,7 @@ export const RegisterScreen: React.FC = () => {
     const newErrors = { ...errors };
 
     // Validate first name
-    const firstNameValidation = validators.validateName(formData.firstName, 'First name');
+    const firstNameValidation = validators.validateName(firstName, 'First name');
     if (!firstNameValidation.isValid) {
       newErrors.firstName = firstNameValidation.errors[0] || 'Invalid first name';
       isValid = false;
@@ -74,7 +66,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     // Validate last name
-    const lastNameValidation = validators.validateName(formData.lastName, 'Last name');
+    const lastNameValidation = validators.validateName(lastName, 'Last name');
     if (!lastNameValidation.isValid) {
       newErrors.lastName = lastNameValidation.errors[0] || 'Invalid last name';
       isValid = false;
@@ -83,7 +75,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     // Validate email
-    const emailError = validateEmail(formData.email);
+    const emailError = validateEmail(email);
     if (emailError) {
       newErrors.email = emailError;
       isValid = false;
@@ -92,7 +84,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     // Validate phone
-    const phoneValidation = validators.validatePhone(formData.phone);
+    const phoneValidation = validators.validatePhone(phone);
     if (!phoneValidation.isValid) {
       newErrors.phone = phoneValidation.errors[0] || 'Invalid phone number';
       isValid = false;
@@ -101,7 +93,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     // Validate password
-    const passwordError = validatePassword(formData.password);
+    const passwordError = validatePassword(password);
     if (passwordError) {
       newErrors.password = passwordError;
       isValid = false;
@@ -110,7 +102,7 @@ export const RegisterScreen: React.FC = () => {
     }
 
     // Validate confirm password
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
     if (confirmPasswordError) {
       newErrors.confirmPassword = confirmPasswordError;
       isValid = false;
@@ -133,271 +125,297 @@ export const RegisterScreen: React.FC = () => {
       return;
     }
 
-    try {
-      await register({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        password: formData.password,
-        confirmPassword: formData.confirmPassword,
-      });
-      // Navigation will be handled by the auth state change
-    } catch (err) {
-      Alert.alert(
-        'Registration Failed',
-        error || 'An error occurred during registration. Please try again.'
-      );
-    }
+    registerMutation.mutate({
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+    }, {
+      onSuccess: (result) => {
+        if (result.success && result.user) {
+          // Navigation will be handled by auth state change
+          router.replace('/(tabs)' as any);
+        }
+      },
+      onError: (error: any) => {
+        Alert.alert(
+          'Registration Failed',
+          error.message || 'An error occurred during registration. Please try again.'
+        );
+      },
+    });
   };
 
   const handleLogin = () => {
-    navigation.navigate('Login');
+    router.back();
   };
 
   const handleTermsPress = () => {
-    // For now, just show an alert since navigation types need to be updated
     Alert.alert('Terms and Conditions', 'Terms and Conditions will be displayed here.');
   };
 
   const handlePrivacyPress = () => {
-    // For now, just show an alert since navigation types need to be updated
     Alert.alert('Privacy Policy', 'Privacy Policy will be displayed here.');
   };
 
-  if (isLoading) {
-    return <LoadingScreen message="Creating your account..." />;
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
+    <LinearGradient
+      colors={['#f8fafc', '#e2e8f0', '#cbd5e1']}
+      className="flex-1"
+    >
+      <KeyboardAvoidingView 
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
+        <ScrollView 
+          className="flex-1 px-6 py-8"
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ flexGrow: 1 }}
         >
-          <View style={styles.header}>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>
+          {/* Header Section */}
+          <View className="items-center mb-8">
+            <View className="mb-6 bg-white rounded-full p-4 shadow-lg">
+              <DailyFreshLogo width={120} height={48} variant="full" />
+            </View>
+            <Text className="text-3xl font-bold text-gray-800 mb-2">Create Account</Text>
+            <Text className="text-base text-gray-600 text-center leading-relaxed">
               Join us to start your grocery shopping journey
             </Text>
           </View>
 
-          <Card style={styles.formCard}>
-            <View style={styles.form}>
-              <View style={styles.nameRow}>
-                <View style={styles.nameInput}>
-                  <Input
-                    label="First Name"
-                    value={formData.firstName}
-                    onChangeText={(value) => updateFormData('firstName', value)}
+          {/* Error Message */}
+          {registerMutation.error && (
+            <View className="flex-row items-center bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+              <Icon name="alert-circle" size={20} color="#dc2626" />
+              <Text className="flex-1 ml-3 text-red-700 font-medium">{registerMutation.error.message}</Text>
+              <TouchableOpacity
+                onPress={() => registerMutation.reset()}
+                className="p-1"
+              >
+                <Icon name="x" size={16} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Form Section */}
+          <View className="space-y-6">
+            {/* Name Row */}
+            <View className="flex-row gap-4">
+              {/* First Name Input */}
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">First Name</Text>
+                <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                  errors.firstName ? 'border-red-400' : 'border-gray-200'
+                }`}>
+                  <Icon name="user" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                  <TextInput
+                    className="flex-1 text-base text-gray-800"
                     placeholder="First name"
+                    placeholderTextColor="#9ca3af"
+                    value={firstName}
+                    onChangeText={(value) => updateFormData('firstName', value)}
                     autoCapitalize="words"
-                    error={errors.firstName}
+                    autoComplete="given-name"
+                    autoCorrect={false}
                   />
                 </View>
-                <View style={styles.nameInput}>
-                  <Input
-                    label="Last Name"
-                    value={formData.lastName}
-                    onChangeText={(value) => updateFormData('lastName', value)}
-                    placeholder="Last name"
-                    autoCapitalize="words"
-                    error={errors.lastName}
-                  />
-                </View>
+                {errors.firstName && (
+                  <Text className="text-red-500 text-sm mt-1 ml-1">{errors.firstName}</Text>
+                )}
               </View>
 
-              <Input
-                label="Email Address"
-                value={formData.email}
-                onChangeText={(value) => updateFormData('email', value)}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                error={errors.email}
-                leftIcon="mail"
-              />
+              {/* Last Name Input */}
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-gray-700 mb-2">Last Name</Text>
+                <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                  errors.lastName ? 'border-red-400' : 'border-gray-200'
+                }`}>
+                  <Icon name="user" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                  <TextInput
+                    className="flex-1 text-base text-gray-800"
+                    placeholder="Last name"
+                    placeholderTextColor="#9ca3af"
+                    value={lastName}
+                    onChangeText={(value) => updateFormData('lastName', value)}
+                    autoCapitalize="words"
+                    autoComplete="family-name"
+                    autoCorrect={false}
+                  />
+                </View>
+                {errors.lastName && (
+                  <Text className="text-red-500 text-sm mt-1 ml-1">{errors.lastName}</Text>
+                )}
+              </View>
+            </View>
 
-              <Input
-                label="Phone Number"
-                value={formData.phone}
-                onChangeText={(value) => updateFormData('phone', value)}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-                autoComplete="tel"
-                error={errors.phone}
-                leftIcon="phone"
-              />
+            {/* Email Input */}
+            <View>
+              <Text className="text-sm font-semibold text-gray-700 mb-2">Email Address</Text>
+              <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                errors.email ? 'border-red-400' : 'border-gray-200'
+              }`}>
+                <Icon name="mail" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                <TextInput
+                  className="flex-1 text-base text-gray-800"
+                  placeholder="Enter your email"
+                  placeholderTextColor="#9ca3af"
+                  value={email}
+                  onChangeText={(value) => updateFormData('email', value)}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect={false}
+                />
+              </View>
+              {errors.email && (
+                <Text className="text-red-500 text-sm mt-1 ml-1">{errors.email}</Text>
+              )}
+            </View>
 
-              <Input
-                label="Password"
-                value={formData.password}
-                onChangeText={(value) => updateFormData('password', value)}
-                placeholder="Create a password"
-                secureTextEntry={!showPassword}
-                error={errors.password}
-                leftIcon="lock"
-                rightIcon={showPassword ? 'eye-off' : 'eye'}
-                onRightIconPress={() => setShowPassword(!showPassword)}
-              />
+            {/* Phone Input */}
+            <View>
+              <Text className="text-sm font-semibold text-gray-700 mb-2">Phone Number</Text>
+              <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                errors.phone ? 'border-red-400' : 'border-gray-200'
+              }`}>
+                <Icon name="phone" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                <TextInput
+                  className="flex-1 text-base text-gray-800"
+                  placeholder="Enter your phone number"
+                  placeholderTextColor="#9ca3af"
+                  value={phone}
+                  onChangeText={(value) => updateFormData('phone', value)}
+                  keyboardType="phone-pad"
+                  autoComplete="tel"
+                  autoCorrect={false}
+                />
+              </View>
+              {errors.phone && (
+                <Text className="text-red-500 text-sm mt-1 ml-1">{errors.phone}</Text>
+              )}
+            </View>
 
-              <Input
-                label="Confirm Password"
-                value={formData.confirmPassword}
-                onChangeText={(value) => updateFormData('confirmPassword', value)}
-                placeholder="Confirm your password"
-                secureTextEntry={!showConfirmPassword}
-                error={errors.confirmPassword}
-                leftIcon="lock"
-                rightIcon={showConfirmPassword ? 'eye-off' : 'eye'}
-                onRightIconPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              />
-
-              <View style={styles.termsContainer}>
+            {/* Password Input */}
+            <View>
+              <Text className="text-sm font-semibold text-gray-700 mb-2">Password</Text>
+              <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                errors.password ? 'border-red-400' : 'border-gray-200'
+              }`}>
+                <Icon name="lock" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                <TextInput
+                  className="flex-1 text-base text-gray-800"
+                  placeholder="Create a password"
+                  placeholderTextColor="#9ca3af"
+                  value={password}
+                  onChangeText={(value) => updateFormData('password', value)}
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
                 <TouchableOpacity
-                  style={styles.checkbox}
-                  onPress={() => setAgreedToTerms(!agreedToTerms)}
+                  onPress={() => setShowPassword(!showPassword)}
+                  className="p-2"
                 >
-                  <View style={[styles.checkboxInner, agreedToTerms && styles.checkboxChecked]}>
-                    {agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.termsText}>
-                    I agree to the{' '}
-                    <Text style={styles.termsLink} onPress={handleTermsPress}>
-                      Terms and Conditions
-                    </Text>
-                    {' '}and{' '}
-                    <Text style={styles.termsLink} onPress={handlePrivacyPress}>
-                      Privacy Policy
-                    </Text>
+                  <Text className="text-2xl">
+                    {showPassword ? '🙈' : '🙉'}
                   </Text>
                 </TouchableOpacity>
               </View>
-
-              <Button
-                title="Create Account"
-                onPress={handleRegister}
-                loading={isLoading}
-                style={styles.registerButton}
-              />
+              {errors.password && (
+                <Text className="text-red-500 text-sm mt-1 ml-1">{errors.password}</Text>
+              )}
             </View>
-          </Card>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            {/* Confirm Password Input */}
+            <View>
+              <Text className="text-sm font-semibold text-gray-700 mb-2">Confirm Password</Text>
+              <View className={`flex-row items-center bg-white border-2 rounded-xl px-4 py-3 ${
+                errors.confirmPassword ? 'border-red-400' : 'border-gray-200'
+              }`}>
+                <Icon name="lock" size={20} color="#9ca3af" style={{ marginRight: 12 }} />
+                <TextInput
+                  className="flex-1 text-base text-gray-800"
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#9ca3af"
+                  value={confirmPassword}
+                  onChangeText={(value) => updateFormData('confirmPassword', value)}
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="p-2"
+                >
+                  <Text className="text-2xl">
+                    {showConfirmPassword ? '🙈' : '🙉'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {errors.confirmPassword && (
+                <Text className="text-red-500 text-sm mt-1 ml-1">{errors.confirmPassword}</Text>
+              )}
+            </View>
+
+            {/* Terms Agreement */}
+            <View className="my-4 py-4 border-t border-gray-200">
+              <TouchableOpacity
+                onPress={() => setAgreedToTerms(!agreedToTerms)}
+                className="flex-row items-start"
+              >
+                <View className={`w-5 h-5 border-2 rounded mt-1 items-center justify-center ${
+                  agreedToTerms ? 'bg-green-600 border-green-600' : 'border-gray-300'
+                }`}>
+                  {agreedToTerms && (
+                    <Text className="text-white text-xs font-bold">✓</Text>
+                  )}
+                </View>
+                <Text className="flex-1 ml-3 text-sm text-gray-700 leading-relaxed">
+                  I agree to the{' '}
+                  <Text className="text-green-600 font-semibold" onPress={handleTermsPress}>
+                    Terms and Conditions
+                  </Text>
+                  {' '}and{' '}
+                  <Text className="text-green-600 font-semibold" onPress={handlePrivacyPress}>
+                    Privacy Policy
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Register Button */}
+            <TouchableOpacity
+              onPress={handleRegister}
+              disabled={registerMutation.isPending}
+              className="rounded-xl overflow-hidden mt-6"
+              style={{
+                opacity: registerMutation.isPending ? 0.6 : 1
+              }}
+            >
+              <LinearGradient
+                colors={registerMutation.isPending ? ['#9ca3af', '#9ca3af'] : ['#22c55e', '#16a34a']}
+                className="py-4 px-6"
+              >
+                <Text className="text-white text-center text-lg font-semibold">
+                  {registerMutation.isPending ? 'Creating Account...' : 'Create Account'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          {/* Footer */}
+          <View className="flex-row justify-center items-center mt-8">
+            <Text className="text-gray-600">Already have an account? </Text>
             <TouchableOpacity onPress={handleLogin}>
-              <Text style={styles.loginText}>Sign In</Text>
+              <Text className="text-green-600 font-semibold">Sign In</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </LinearGradient>
   );
 };
-
-const createStyles = (colors: any) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  formCard: {
-    marginBottom: 30,
-  },
-  form: {
-    padding: 20,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  nameInput: {
-    flex: 1,
-  },
-  termsContainer: {
-    marginVertical: 20,
-  },
-  checkbox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  checkboxInner: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    borderRadius: 4,
-    marginRight: 12,
-    marginTop: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  checkmark: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  termsText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-  termsLink: {
-    color: colors.accent,
-    fontWeight: '500',
-  },
-  registerButton: {
-    marginTop: 10,
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  loginText: {
-    fontSize: 16,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-});
 
 // Default export to satisfy Expo Router (this file should be treated as a route)
 export default RegisterScreen;

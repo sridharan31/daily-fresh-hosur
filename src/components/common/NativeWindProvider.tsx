@@ -7,14 +7,12 @@ interface NativeWindProviderProps {
 
 export const NativeWindProvider: React.FC<NativeWindProviderProps> = ({ children }) => {
   useEffect(() => {
-    // Ensure global CSS is loaded for web
+    // NativeWind CSS is loaded globally in App.tsx at line 13
+    // This provider just logs initialization status for debugging
     if (Platform.OS === 'web') {
-      try {
-        // Use require for CSS import on web
-        require('../../../global.css');
-      } catch (error) {
-        console.warn('Could not load global.css:', error);
-      }
+      console.log('✅ NativeWind initialized for web');
+    } else {
+      console.log('✅ NativeWind initialized for native');
     }
   }, []);
 

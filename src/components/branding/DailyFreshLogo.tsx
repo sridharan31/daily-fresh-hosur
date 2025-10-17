@@ -14,50 +14,6 @@ export const DailyFreshLogo: React.FC<DailyFreshLogoProps> = ({
   showText = true,
   variant = 'full'
 }) => {
-  // For web platform, we'll use the SVG assets directly in img tags
-  if (typeof window !== 'undefined') {
-    if (variant === 'icon') {
-      return (
-        <View style={{
-          width: width,
-          height: height,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <img 
-            src="/assets/branding/daily-fresh-icon.svg"
-            alt="Daily Fresh Logo"
-            style={{
-              width: width,
-              height: height,
-              objectFit: 'contain'
-            }}
-          />
-        </View>
-      );
-    }
-
-    return (
-      <View style={{
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: width,
-        height: height,
-      }}>
-        <img 
-          src="/assets/?unstable_path=.%2Fassets%2Fbranding/daily-fresh-logo.svg"
-          alt="Daily Fresh Hosur"
-          style={{
-            width: width,
-            height: height,
-            objectFit: 'contain'
-          }}
-        />
-      </View>
-    );
-  }
-
-  // For mobile platforms, fallback to simple icon design
   if (variant === 'icon') {
     return (
       <View style={{
@@ -67,13 +23,27 @@ export const DailyFreshLogo: React.FC<DailyFreshLogoProps> = ({
         borderRadius: width / 2,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
       }}>
         <View style={{
-          width: width * 0.4,
-          height: width * 0.4,
+          width: width * 0.6,
+          height: width * 0.6,
           backgroundColor: '#FFFFFF',
-          borderRadius: (width * 0.4) / 2,
-        }} />
+          borderRadius: (width * 0.6) / 2,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <View style={{
+            width: width * 0.3,
+            height: width * 0.3,
+            backgroundColor: '#4CAF50',
+            borderRadius: (width * 0.3) / 2,
+          }} />
+        </View>
       </View>
     );
   }
@@ -86,11 +56,36 @@ export const DailyFreshLogo: React.FC<DailyFreshLogoProps> = ({
       height: height,
     }}>
       <View style={{
-        width: Math.min(width, height) * 0.8,
-        height: Math.min(width, height) * 0.8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#4CAF50',
-        borderRadius: (Math.min(width, height) * 0.8) / 2,
-      }} />
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5,
+      }}>
+        <View style={{
+          width: 40,
+          height: 40,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 20,
+          marginRight: showText ? 12 : 0,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <View style={{
+            width: 20,
+            height: 20,
+            backgroundColor: '#4CAF50',
+            borderRadius: 10,
+          }} />
+        </View>
+      </View>
     </View>
   );
 };

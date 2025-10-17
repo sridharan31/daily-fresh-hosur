@@ -50,14 +50,8 @@ export default function AdminDashboard() {
 
   // Show admin login screen if not authenticated or not admin
   if (isLoading) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.welcomeSection}>
-          <h1 style={styles.welcomeTitle}>Loading...</h1>
-          <p style={styles.welcomeSubtitle}>Checking authentication...</p>
-        </div>
-      </div>
-    );
+    // Use SimpleLoginScreen as a fallback loading component
+    return <SimpleLoginScreen onLoginSuccess={() => setIsLoading(false)} />;
   }
 
   // Check if user is admin (check both profile and user_metadata)

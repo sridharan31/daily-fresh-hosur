@@ -1,30 +1,27 @@
 // metro.config.js
+// Simple Metro config without NativeWind - using pure React Native StyleSheet
 const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
 const config = getDefaultConfig(__dirname, {
-  // Enable CSS support for web
+  // Enable CSS support for web only
   isCSSEnabled: true,
 });
 
-// Configure NativeWind first, before other customizations
-const configWithNativeWind = withNativeWind(config, { input: './global.css' });
-
 // Add platform extensions
-configWithNativeWind.resolver.platforms = ['native', 'android', 'ios', 'web'];
+config.resolver.platforms = ['native', 'android', 'ios', 'web'];
 
 // Watch folders
-configWithNativeWind.watchFolders = [__dirname];
+config.watchFolders = [__dirname];
 
 // Handle platform-specific modules for web
-configWithNativeWind.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 // Web stub path
 const webStubPath = path.resolve(__dirname, 'web-stubs');
 
 // SINGLE MERGED resolveRequest function
-configWithNativeWind.resolver.resolveRequest = (context, moduleName, platform) => {
+config.resolver.resolveRequest = (context, moduleName, platform) => {
   // Only apply custom resolution for web platform
   if (platform === 'web') {
     
@@ -271,19 +268,19 @@ config.resolver.alias = {
 };
 
 // Add resolver block list for web
-configWithNativeWind.resolver.blockList = [
+config.resolver.blockList = [
   // Block react-native-maps from being imported on web
   /react-native-maps\/src\/.*\.ts$/,
   /react-native-maps\/lib\/.*\.js$/,
 ];
 
 // Exclude native-only modules from web builds
-configWithNativeWind.transformer.minifierConfig = {
+config.transformer.minifierConfig = {
   keep_fnames: true,
   mangle: {
     keep_fnames: true,
   },
 };
 
-// Export the configured config
-module.exports = configWithNativeWind;
+// Export the standard Metro config without NativeWind
+module.exports = config;
