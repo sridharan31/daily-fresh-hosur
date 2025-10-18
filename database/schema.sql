@@ -404,8 +404,9 @@ CREATE POLICY "Anyone can view active banners" ON banners FOR SELECT USING (is_a
 CREATE POLICY "Anyone can view app settings" ON app_settings FOR SELECT;
 
 -- Admin policies (to be implemented based on role)
+-- Use auth.role() to check JWT token instead of querying users table (avoids infinite recursion)
 CREATE POLICY "Admins can do everything" ON users FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.role() = 'admin'
 );
 
 -- Functions for common operations

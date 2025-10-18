@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import Config from '../../../src/config/environment';
 import cartService from '../../services/api/cartService';
 import priceCalculator from '../../services/business/priceCalculator';
+import cartSupabaseService from '../../services/cartSupabaseService';
 import { CartItem, CartState, Coupon } from '../../types/cart';
 import { Product } from '../../types/product';
 
@@ -98,13 +99,14 @@ export const applyCouponCode = createAsyncThunk<Coupon, string>(
   'cart/applyCoupon',
   async (couponCode, {rejectWithValue}) => {
     try {
-      const response = await cartService.applyCoupon(couponCode);
-      if (!response.data) {
-        throw new Error('Failed to apply coupon');
+      // Use the Supabase service instead of API service
+      const response = await cartSupabaseService.applyCoupon(couponCode);
+      if (!response.success || !response.data) {
+        throw new Error(response.message || 'Failed to apply coupon');
       }
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data || error.message);
+      return rejectWithValue(error.message || 'Failed to apply coupon');
     }
   }
 );

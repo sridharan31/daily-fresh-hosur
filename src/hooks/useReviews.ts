@@ -1,7 +1,7 @@
 // src/hooks/useReviews.ts
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import reviewService from '../../lib/services/api/reviewService';
+import productService from '../../lib/services/productService';
 import {
   AddReviewRequest,
   Review,
@@ -51,7 +51,7 @@ export const useReviews = ({
   const [filters, setFilters] = useState<ReviewFilters>(initialFilters);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Load reviews
+  // Load reviews using Supabase
   const loadReviews = useCallback(async (page: number = 1, append: boolean = false) => {
     try {
       if (page === 1) {
@@ -59,22 +59,64 @@ export const useReviews = ({
       }
       setError(null);
 
-      const response = await reviewService.getProductReviews(productId, page, limit, filters);
+      // Calculate offset for pagination
+      const offset = (page - 1) * limit;
       
-      if (response.success && response.data) {
-        const { reviews: newReviews, stats: reviewStats, hasMore: moreAvailable } = response.data;
+      // Use Supabase-based productService
+      const newReviews = await productService.getProductReviews(productId, limit, offset);
+      
+      if (newReviews) {
+        // Convert to the expected Review format if necessary
+        const formattedReviews: Review[] = newReviews.map(review => ({
+          id: review.id,
+          productId: review.product_id,
+          userId: review.user_id,
+          rating: review.rating,
+          title: review.title || '',
+          comment: review.comment || '',
+          images: review.images || [],
+          createdAt: review.created_at,
+          updatedAt: review.updated_at || review.created_at,
+          helpfulVotes: review.helpful_count || 0,
+          totalVotes: review.total_votes || 0,
+          isVerifiedPurchase: review.is_verified_purchase || false,
+          // Create a user object that matches the ReviewUser type
+          user: {
+            id: review.user_id,
+            name: review.users?.full_name || 'Anonymous',
+            avatar: review.users?.avatar_url || undefined,
+          }
+        }));
+
+        // Get review stats (if available)
+        // For now, we'll create a simplified stats object
+        const reviewStats: ReviewStats = {
+          averageRating: newReviews.reduce((acc, curr) => acc + curr.rating, 0) / newReviews.length || 0,
+          totalReviews: newReviews.length,
+          ratingDistribution: {
+            1: newReviews.filter(r => r.rating === 1).length,
+            2: newReviews.filter(r => r.rating === 2).length,
+            3: newReviews.filter(r => r.rating === 3).length,
+            4: newReviews.filter(r => r.rating === 4).length,
+            5: newReviews.filter(r => r.rating === 5).length,
+          },
+          verifiedPurchasePercentage: newReviews.filter(r => r.is_verified_purchase).length / newReviews.length * 100 || 0,
+          recommendationPercentage: 0 // Not available from Supabase yet
+        };
         
         if (append && page > 1) {
-          setReviews(prev => [...prev, ...newReviews]);
+          setReviews(prev => [...prev, ...formattedReviews]);
         } else {
-          setReviews(newReviews);
+          setReviews(formattedReviews);
           setStats(reviewStats);
         }
         
-        setHasMore(moreAvailable);
+        // Determine if there are more reviews to load
+        // If we got back fewer reviews than the limit, there are no more
+        setHasMore(newReviews.length === limit);
         setCurrentPage(page);
       } else {
-        setError(response.message || 'Failed to load reviews');
+        setError('Failed to load reviews');
       }
     } catch (err: any) {
       console.error('Error loading reviews:', err);
@@ -108,30 +150,22 @@ export const useReviews = ({
   // Add new review
   const addReview = useCallback(async (reviewData: AddReviewRequest): Promise<boolean> => {
     try {
-      const response = await reviewService.addReview(reviewData);
+      const response = await productService.addProductReview(
+        productId,
+        reviewData.orderId || '',
+        reviewData.rating,
+        reviewData.title || '',
+        reviewData.comment || '',
+        reviewData.images
+      );
       
-      if (response.success && response.data) {
-        // Add the new review to the top of the list
-        setReviews(prev => [response.data!, ...prev]);
-        
-        // Update stats if available
-        if (stats) {
-          const newStats = { ...stats };
-          newStats.totalReviews += 1;
-          const newTotal = newStats.averageRating * (newStats.totalReviews - 1) + reviewData.rating;
-          newStats.averageRating = newTotal / newStats.totalReviews;
-          
-          // Update rating distribution
-          const ratingKey = reviewData.rating as keyof typeof newStats.ratingDistribution;
-          newStats.ratingDistribution[ratingKey] += 1;
-          
-          setStats(newStats);
-        }
-        
-        Alert.alert('Success', 'Your review has been submitted successfully!');
+      if (response) {
+        // Refresh reviews to include the newly added one
+        await refresh();
+        Alert.alert('Success', 'Your review has been submitted and will be visible after approval.');
         return true;
       } else {
-        Alert.alert('Error', response.message || 'Failed to submit review');
+        Alert.alert('Error', 'Failed to submit review. Please try again.');
         return false;
       }
     } catch (err: any) {
@@ -144,20 +178,9 @@ export const useReviews = ({
   // Update existing review
   const updateReview = useCallback(async (reviewId: string, updateData: UpdateReviewRequest): Promise<boolean> => {
     try {
-      const response = await reviewService.updateReview(reviewId, updateData);
-      
-      if (response.success && response.data) {
-        // Update the review in the list
-        setReviews(prev => prev.map(review => 
-          review.id === reviewId ? response.data! : review
-        ));
-        
-        Alert.alert('Success', 'Your review has been updated successfully!');
-        return true;
-      } else {
-        Alert.alert('Error', response.message || 'Failed to update review');
-        return false;
-      }
+      // This would need implementation in Supabase
+      Alert.alert('Not Implemented', 'Review updating is not yet available with Supabase.');
+      return false;
     } catch (err: any) {
       console.error('Error updating review:', err);
       Alert.alert('Error', err.message || 'Failed to update review');
@@ -168,25 +191,9 @@ export const useReviews = ({
   // Delete review
   const deleteReview = useCallback(async (reviewId: string): Promise<boolean> => {
     try {
-      const response = await reviewService.deleteReview(reviewId);
-      
-      if (response.success) {
-        // Remove the review from the list
-        setReviews(prev => prev.filter(review => review.id !== reviewId));
-        
-        // Update stats
-        if (stats) {
-          const newStats = { ...stats };
-          newStats.totalReviews = Math.max(0, newStats.totalReviews - 1);
-          setStats(newStats);
-        }
-        
-        Alert.alert('Success', 'Review deleted successfully!');
-        return true;
-      } else {
-        Alert.alert('Error', response.message || 'Failed to delete review');
-        return false;
-      }
+      // This would need implementation in Supabase
+      Alert.alert('Not Implemented', 'Review deletion is not yet available with Supabase.');
+      return false;
     } catch (err: any) {
       console.error('Error deleting review:', err);
       Alert.alert('Error', err.message || 'Failed to delete review');
@@ -197,24 +204,9 @@ export const useReviews = ({
   // Vote helpful on review
   const voteHelpful = useCallback(async (reviewId: string, isHelpful: boolean): Promise<boolean> => {
     try {
-      const response = await reviewService.voteHelpful({ reviewId, isHelpful });
-      
-      if (response.success && response.data) {
-        // Update the review's helpful votes
-        setReviews(prev => prev.map(review => 
-          review.id === reviewId 
-            ? { 
-                ...review, 
-                helpfulVotes: response.data!.helpfulVotes,
-                totalVotes: response.data!.totalVotes
-              }
-            : review
-        ));
-        return true;
-      } else {
-        Alert.alert('Error', response.message || 'Failed to vote on review');
-        return false;
-      }
+      // This would need implementation in Supabase
+      Alert.alert('Not Implemented', 'Review voting is not yet available with Supabase.');
+      return false;
     } catch (err: any) {
       console.error('Error voting on review:', err);
       Alert.alert('Error', err.message || 'Failed to vote on review');
@@ -225,24 +217,9 @@ export const useReviews = ({
   // Remove vote on review
   const removeVote = useCallback(async (reviewId: string): Promise<boolean> => {
     try {
-      const response = await reviewService.removeVote(reviewId);
-      
-      if (response.success && response.data) {
-        // Update the review's helpful votes
-        setReviews(prev => prev.map(review => 
-          review.id === reviewId 
-            ? { 
-                ...review, 
-                helpfulVotes: response.data!.helpfulVotes,
-                totalVotes: response.data!.totalVotes
-              }
-            : review
-        ));
-        return true;
-      } else {
-        Alert.alert('Error', response.message || 'Failed to remove vote');
-        return false;
-      }
+      // This would need implementation in Supabase
+      Alert.alert('Not Implemented', 'Removing votes is not yet available with Supabase.');
+      return false;
     } catch (err: any) {
       console.error('Error removing vote:', err);
       Alert.alert('Error', err.message || 'Failed to remove vote');
@@ -253,15 +230,9 @@ export const useReviews = ({
   // Report review
   const reportReview = useCallback(async (reviewId: string, reason: string, description?: string): Promise<boolean> => {
     try {
-      const response = await reviewService.reportReview(reviewId, reason, description);
-      
-      if (response.success) {
-        Alert.alert('Success', 'Review has been reported. Thank you for helping us maintain quality standards.');
-        return true;
-      } else {
-        Alert.alert('Error', response.message || 'Failed to report review');
-        return false;
-      }
+      // This would need implementation in Supabase
+      Alert.alert('Not Implemented', 'Reporting reviews is not yet available with Supabase.');
+      return false;
     } catch (err: any) {
       console.error('Error reporting review:', err);
       Alert.alert('Error', err.message || 'Failed to report review');

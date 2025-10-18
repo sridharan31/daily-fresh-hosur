@@ -2,6 +2,7 @@ import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import authService from '../../services/api/authService';
 import { ApiResponse } from '../../types/api';
 import { AuthState, LoginCredentials, OTPVerification, RegisterData, User } from '../../types/auth';
+import { checkSupabaseSession, supabaseLoginUser } from '../actions/supabaseAuthActions';
 
 // Async thunks
 export const loginUser = createAsyncThunk<
@@ -195,6 +196,32 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.isAuthenticated = true;
         state.otpVerificationRequired = false;
+      })
+      // Supabase Login
+      .addCase(supabaseLoginUser.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(supabaseLoginUser.fulfilled, (state, action) => {
+        console.log('🔐 Supabase login successful, updating auth state:', action.payload);
+        state.isLoading = false;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+        console.log('🔐 Auth state updated with Supabase data');
+      })
+      .addCase(supabaseLoginUser.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Supabase login failed';
+      })
+      // Check Supabase Session
+      .addCase(checkSupabaseSession.fulfilled, (state, action) => {
+        if (action.payload) {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          state.isAuthenticated = true;
+          console.log('🔐 Existing session restored');
+        }
       })
       // Reset Password
       .addCase(resetPassword.pending, (state) => {

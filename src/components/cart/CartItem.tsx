@@ -1,12 +1,12 @@
  // app/components/cart/CartItem.tsx
 import React, { useState } from 'react';
 import {
-    Alert,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
@@ -29,26 +29,52 @@ const CartItem: React.FC<CartItemProps> = ({
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Track recent quantity change for visual feedback
+  const [recentlyUpdated, setRecentlyUpdated] = useState(false);
+  
+  // Simple visual feedback for quantity changes
+  const showUpdateFeedback = () => {
+    setRecentlyUpdated(true);
+    
+    // Reset feedback after a short delay
+    setTimeout(() => {
+      setRecentlyUpdated(false);
+    }, 500);
+  };
+  
   const handleIncrease = () => {
-    if (item.quantity < item.maxQuantity) {
-      onUpdateQuantity(item.quantity + 1);
+    if (item.quantity < (item.maxQuantity || 10)) {
+      // Visual feedback before update
+      const newQuantity = item.quantity + 1;
+      
+      // Trigger visual feedback
+      showUpdateFeedback();
+      
+      // Apply the update with optimistic UI update
+      onUpdateQuantity(newQuantity);
+      
+      console.log(`Quantity increased to ${newQuantity}`);
     } else {
-      Alert.alert('Stock Limit', `Only ${item.maxQuantity} items available in stock`);
+      Alert.alert('Stock Limit', `Only ${item.maxQuantity || 'a limited number of'} items available in stock`);
     }
   };
 
   const handleDecrease = () => {
     if (item.quantity > 1) {
+      // Show visual feedback when changing quantity
+      const originalQuantity = item.quantity;
+      
+      // Trigger visual feedback
+      showUpdateFeedback();
+      
+      // Apply the update
       onUpdateQuantity(item.quantity - 1);
+      
+      // Log for debugging
+      console.log(`Quantity updated: ${originalQuantity} -> ${item.quantity - 1}`);
     } else {
-      Alert.alert(
-        'Remove Item',
-        'Do you want to remove this item from cart?',
-        [
-          {text: 'Cancel', style: 'cancel'},
-          {text: 'Remove', onPress: onRemove, style: 'destructive'},
-        ]
-      );
+      // Directly remove item when quantity is 1
+      onRemove();
     }
   };
 
@@ -61,8 +87,12 @@ const CartItem: React.FC<CartItemProps> = ({
         {
           text: 'Remove', 
           onPress: () => {
+            console.log('Removing item via Alert confirm');
             setIsDeleting(true);
-            onRemove();
+            // Add a small delay to show the deleting state
+            setTimeout(() => {
+              onRemove();
+            }, 300);
           }, 
           style: 'destructive'
         },
@@ -79,13 +109,33 @@ const CartItem: React.FC<CartItemProps> = ({
   const totalPrice = currentPrice * item.quantity;
   const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
 
+  // Check product availability from either direct property or product data
+  const isProductAvailable = (
+    // Check explicit isAvailable flag if set
+    item.isAvailable !== false && 
+    // If product data exists, check stock quantity and active status
+    (!item.product || (
+      // Product with stock_quantity > 0 is available
+      ((item.product as any).stock_quantity > 0 || (item.product as any).stock_quantity === undefined) && 
+      // Product must not be explicitly inactive
+      (item.product as any).is_active !== false
+    ))
+  );
+
   return (
     <View style={[
       styles.container, 
-      !item.isAvailable && styles.unavailableContainer,
+      !isProductAvailable && styles.unavailableContainer,
       isDeleting && styles.deletingContainer
     ]}>
       <Image source={{uri: item.image}} style={styles.image} />
+      
+      {/* Show stock quantity if available */}
+      {(item.product && (item.product as any).stock_quantity > 0) && (
+        <View style={styles.stockBadge}>
+          <Text style={styles.stockText}>{(item.product as any).stock_quantity} in stock</Text>
+        </View>
+      )}
       
       <View style={styles.details}>
         <Text style={styles.name} numberOfLines={2}>
@@ -105,8 +155,10 @@ const CartItem: React.FC<CartItemProps> = ({
           )}
         </View>
         
-        {!item.isAvailable && (
-          <Text style={styles.unavailableText}>Currently unavailable</Text>
+        {!isProductAvailable && (
+          <Text style={styles.unavailableText}>
+            {item.product && (item.product as any).stock_quantity === 0 ? 'Out of stock' : 'Currently unavailable'}
+          </Text>
         )}
       </View>
       
@@ -130,7 +182,7 @@ const CartItem: React.FC<CartItemProps> = ({
           <TouchableOpacity
             onPress={handleDecrease}
             style={[styles.quantityButton, (disabled || isDeleting) && styles.disabledButton]}
-            disabled={disabled || !item.isAvailable || isDeleting}
+            disabled={disabled || !isProductAvailable || isDeleting}
           >
             <Icon 
               name="remove" 
@@ -139,12 +191,14 @@ const CartItem: React.FC<CartItemProps> = ({
             />
           </TouchableOpacity>
           
-          <Text style={styles.quantity}>{item.quantity}</Text>
+          <Text style={[styles.quantity, recentlyUpdated && styles.updatedQuantity]}>
+            {item.quantity}
+          </Text>
           
           <TouchableOpacity
             onPress={handleIncrease}
             style={[styles.quantityButton, (disabled || isDeleting) && styles.disabledButton]}
-            disabled={disabled || !item.isAvailable || item.quantity >= item.maxQuantity || isDeleting}
+            disabled={disabled || !isProductAvailable || (item.quantity >= (item.maxQuantity || 10)) || isDeleting}
           >
             <Icon 
               name="add" 
@@ -176,6 +230,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     shadowRadius: 4,
     borderWidth: 1,
     borderColor: colors.border,
+    position: 'relative',
+  },
+  stockBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: colors.success + '33', // 20% opacity
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  stockText: {
+    fontSize: 10,
+    color: colors.success,
+    fontWeight: 'bold',
   },
   unavailableContainer: {
     opacity: 0.6,
@@ -263,11 +332,15 @@ const createStyles = (colors: any) => StyleSheet.create({
     borderColor: colors.borderLight,
   },
   quantity: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     minWidth: 24,
     textAlign: 'center',
+  },
+  updatedQuantity: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   totalPrice: {
     fontSize: 16,

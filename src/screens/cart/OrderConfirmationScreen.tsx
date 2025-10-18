@@ -1,11 +1,11 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
@@ -108,7 +108,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationProps> = () => {
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Order Total</Text>
             <Text style={[styles.detailValue, styles.totalText]}>
-              AED {order.total?.toFixed(2) || '0.00'}
+              ₹{order.total?.toFixed(2) || '0.00'}
             </Text>
           </View>
         </Card>
@@ -135,7 +135,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationProps> = () => {
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
               </View>
-              <Text style={styles.itemPrice}>AED {item.price?.toFixed(2) || '0.00'}</Text>
+              <Text style={styles.itemPrice}>₹{item.price?.toFixed(2) || '0.00'}</Text>
             </View>
           )) || (
             <Text style={styles.noItemsText}>No items found</Text>
@@ -201,6 +201,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingBottom: 100, // Add extra padding at the bottom so content isn't hidden behind buttons
   },
   successContainer: {
     alignItems: 'center',

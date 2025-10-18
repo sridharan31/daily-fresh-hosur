@@ -1,19 +1,20 @@
 import { useCallback, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import cartService from '../../lib/services/api/cartService';
+import cartSupabaseService from '../../lib/services/cartSupabaseService';
 import FirebaseService from '../../lib/services/FirebaseService';
 import { AppDispatch, RootState } from '../../lib/store';
 import {
-    addLocalItem,
-    addToCart,
-    applyCouponCode,
-    clearCart,
-    removeCoupon,
-    removeFromCart,
-    removeLocalItem,
-    setDeliveryCharge,
-    syncCartWithServer,
-    updateQuantity,
+  addLocalItem,
+  addToCart,
+  applyCouponCode,
+  clearCart,
+  removeCoupon,
+  removeFromCart,
+  removeLocalItem,
+  setDeliveryCharge,
+  syncCartWithServer,
+  updateQuantity,
 } from '../../lib/store/slices/cartSlice';
 import { CartItem } from '../../lib/types/cart';
 import { Product } from '../../lib/types/product';
@@ -21,7 +22,7 @@ import Config from '../config/environment';
 
 export const useCart = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const {isAuthenticated} = useSelector((state: RootState) => state.auth);
+  const {isAuthenticated, user} = useSelector((state: RootState) => state.auth);
   
   // Get cart state directly from RootState
   const cartState = useSelector((state: RootState) => state.cart);
@@ -97,19 +98,43 @@ export const useCart = () => {
             item_category: removedItem.product.category,
             quantity_removed: removedItem.quantity,
             value: removedItem.totalPrice,
-            currency: Config.DEFAULT_CURRENCY || 'USD',
+            currency: 'INR',
           });
         }
       }
 
       // Sync with server if authenticated
       if (isAuthenticated) {
-        await dispatch(removeFromCart(itemId));
+        try {
+          // Get the user ID from Redux store directly
+          const { auth } = useSelector((state: RootState) => state);
+          const userId = auth?.user?.id;
+
+          if (userId) {
+            // Try Supabase service first
+            try {
+              const result = await cartSupabaseService.removeFromCart(userId, itemId);
+              if (!result.success) {
+                // Fall back to API service
+                await dispatch(removeFromCart(itemId));
+              }
+            } catch (error) {
+              console.error('Error with Supabase cart removal, falling back to API:', error);
+              await dispatch(removeFromCart(itemId));
+            }
+          } else {
+            // If user ID not available, use the old method
+            await dispatch(removeFromCart(itemId));
+          }
+        } catch (error) {
+          console.error('Error removing item from cart:', error);
+          await dispatch(removeFromCart(itemId));
+        }
       }
     } catch (error) {
       console.error('Error removing item from cart:', error);
     }
-  }, [dispatch, isAuthenticated, items]);
+  }, [dispatch, isAuthenticated, items, useSelector]);
 
   const removeMultipleItems = useCallback(async (itemIds: string[]) => {
     try {
@@ -151,17 +176,45 @@ export const useCart = () => {
 
   const clearAllItems = useCallback(async () => {
     try {
-      // Clear local state
+      console.log('Clearing all cart items');
+      
+      // Clear local state immediately
       dispatch(clearCart());
 
       // Clear server cart if authenticated
       if (isAuthenticated) {
-        await cartService.clearCart();
+        const userId = user?.id;
+
+        if (userId) {
+          console.log('User authenticated, clearing cart on server for user:', userId);
+          try {
+            // Try Supabase service first
+            const result = await cartSupabaseService.clearCart(userId);
+            if (!result.success) {
+              // Fall back to API service
+              console.log('Supabase clear failed, using API fallback');
+              await cartService.clearCart();
+            }
+          } catch (error) {
+            // Fall back to API service
+            console.error('Error with Supabase clear cart, falling back to API:', error);
+            await cartService.clearCart();
+          }
+        } else {
+          // If user ID not available, use the old method
+          console.log('No user ID found, using API fallback');
+          await cartService.clearCart();
+        }
+      } else {
+        console.log('User not authenticated, only clearing local cart state');
       }
+      
+      return true; // Return success
     } catch (error) {
       console.error('Error clearing cart:', error);
+      return false; // Return failure
     }
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, user]);
 
   const applyCoupon = useCallback(async (code: string) => {
     try {

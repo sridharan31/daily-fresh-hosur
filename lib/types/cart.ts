@@ -25,13 +25,19 @@ export interface Cart {
 }
 
 export interface Coupon {
+  id?: string;
   code: string;
-  value: number;
-  type: 'percentage' | 'fixed';
-  minOrderValue: number;
-  maxDiscount?: number;
-  expiryDate: string;
+  title?: string;
   description?: string;
+  discountType: 'percentage' | 'fixed' | 'free_delivery';
+  value: number;
+  minOrderAmount?: number;
+  maxDiscountAmount?: number;
+  validUntil?: string;
+  type?: 'percentage' | 'fixed'; // For backwards compatibility
+  minOrderValue?: number; // For backwards compatibility
+  maxDiscount?: number; // For backwards compatibility
+  expiryDate?: string; // For backwards compatibility
 }
 
 export interface CartState {

@@ -25,8 +25,8 @@ interface DiscountRule {
 }
 
 class PriceCalculatorService {
-  private readonly currency = Config.DEFAULT_CURRENCY;
-  private readonly vatRate = Config.VAT_RATE;
+  private readonly currency = 'INR';
+  private readonly gstRate = Config.VAT_RATE;
   private readonly freeDeliveryThreshold = Config.FREE_DELIVERY_THRESHOLD;
   private readonly standardDeliveryCharge = Config.STANDARD_DELIVERY_CHARGE;
   private readonly expressDeliveryCharge = Config.EXPRESS_DELIVERY_CHARGE;
@@ -38,36 +38,40 @@ class PriceCalculatorService {
     const formattedAmount = amount.toFixed(2);
     
     if (showCurrency) {
-      switch (this.currency) {
-        case 'AED':
-          return `AED ${formattedAmount}`;
-        case 'USD':
-          return `$${formattedAmount}`;
-        case 'EUR':
-          return `€${formattedAmount}`;
-        case 'INR':
-          return `₹${formattedAmount}`;
-        default:
-          return `${this.currency} ${formattedAmount}`;
-      }
+      // Always return Rupee format
+      return `₹${formattedAmount}`;
     }
     
     return formattedAmount;
   }
 
   /**
-   * Get VAT display text based on configuration
+   * Get GST display text based on configuration
    */
-  getVATDisplayText(): string {
-    const vatPercentage = (this.vatRate * 100).toFixed(0);
-    return `VAT (${vatPercentage}%)`;
+  getGSTDisplayText(): string {
+    const gstPercentage = (this.gstRate * 100).toFixed(0);
+    return `GST (${gstPercentage}%)`;
   }
 
   /**
-   * Calculate VAT amount
+   * Legacy method for backward compatibility
+   */
+  getVATDisplayText(): string {
+    return this.getGSTDisplayText();
+  }
+
+  /**
+   * Calculate GST amount
+   */
+  calculateGST(amount: number): number {
+    return amount * this.gstRate;
+  }
+
+  /**
+   * Legacy method for backward compatibility
    */
   calculateVAT(amount: number): number {
-    return amount * this.vatRate;
+    return this.calculateGST(amount);
   }
 
   /**

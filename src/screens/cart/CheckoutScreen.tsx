@@ -1,14 +1,16 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    Alert,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import supabaseOrderService from '../../../lib/services/api/supabaseOrderService';
+import AddressFormModal from '../../components/address/AddressFormModal';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Header from '../../components/common/Header';
@@ -46,6 +48,7 @@ const CheckoutScreen: React.FC = () => {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [orderNotes, setOrderNotes] = useState('');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   // Mock addresses - in real app, fetch from user profile
   const userAddresses: DeliveryAddress[] = [
@@ -102,64 +105,145 @@ const CheckoutScreen: React.FC = () => {
     }
   }, []);
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = () => {
     if (!selectedAddress) {
-      Alert.alert('Address Required', 'Please select a delivery address.');
+      Alert.alert('Address Required', 'Please select a delivery address to continue.');
       return;
     }
 
     if (!selectedPaymentMethod) {
-      Alert.alert('Payment Method Required', 'Please select a payment method.');
+      Alert.alert('Payment Method Required', 'Please select how you would like to pay for this order.');
       return;
     }
 
     if (cart.items.length === 0) {
-      Alert.alert('Empty Cart', 'Your cart is empty.');
+      Alert.alert('Empty Cart', 'Your cart is empty. Please add some items before checkout.');
       return;
     }
-
+    
+    // Show confirmation dialog before placing the order
+    Alert.alert(
+      'Confirm Order',
+      `You're about to place an order for ₹${cart.total.toFixed(2)}. Would you like to proceed?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Place Order',
+          onPress: processOrder
+        }
+      ]
+    );
+  };
+  
+  // Separate function to process the order after confirmation
+  const processOrder = async () => {
     setIsPlacingOrder(true);
 
     try {
+      if (!selectedAddress || !selectedPaymentMethod) {
+        throw new Error('Missing address or payment information');
+      }
+
+      // Prepare order data
       const orderData = {
-        items: cart.items,
-        deliveryAddress: selectedAddress,
-        paymentMethod: selectedPaymentMethod,
+        items: cart.items.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          total: item.price * item.quantity
+        })),
+        deliveryAddress: {
+          id: selectedAddress.id,
+          label: selectedAddress.label,
+          street: selectedAddress.street,
+          apartment: selectedAddress.apartment,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          zipCode: selectedAddress.zipCode,
+          country: selectedAddress.country
+        },
+        paymentMethod: {
+          id: selectedPaymentMethod.id,
+          type: selectedPaymentMethod.type,
+          last4: selectedPaymentMethod.last4,
+          brand: selectedPaymentMethod.brand
+        },
         notes: orderNotes,
         subtotal: cart.subtotal,
         deliveryCharge: cart.deliveryCharge,
         discount: cart.discount,
         vatAmount: cart.vatAmount,
         total: cart.total,
-        appliedCoupon: cart.appliedCoupon,
+        appliedCoupon: cart.appliedCoupon
       };
 
-      const result = await placeOrder(orderData);
-      
-      // Clear cart after successful order
-      // Note: Implement clearCart method in cart hook if needed
-      // await cart.clearCart();
-      
-      // Navigate to order confirmation
-      Alert.alert(
-        'Order Placed Successfully!',
-        'Your order has been placed and will be delivered soon.',
-        [
-          {
-            text: 'View Orders',
-            onPress: () => navigation.navigate('Orders' as never),
-          },
-          {
-            text: 'Continue Shopping',
-            onPress: () => navigation.navigate('Home' as never),
-          },
-        ]
-      );
-    } catch (error) {
+      // Handle Cash on Delivery directly with Supabase
+      if (selectedPaymentMethod?.type === 'cash') {
+        try {
+          // Use supabaseOrderService directly for Cash on Delivery
+          const userId = user?.id;
+          if (!userId) {
+            throw new Error('User not authenticated');
+          }
+          
+          const result = await supabaseOrderService.createOrder(userId, orderData);
+          
+          // Clear cart - using a more general approach
+          cart.items.forEach(item => {
+            cart.removeItem(item.id);
+          });
+          
+          // Navigate to order confirmation
+          navigation.navigate('OrderConfirmation' as never);
+          
+          // Show success message
+          Alert.alert(
+            'Order Placed Successfully!',
+            'Your cash on delivery order has been confirmed.',
+            [{ text: 'OK' }]
+          );
+        } catch (error: any) {
+          console.error('Supabase order placement failed:', error);
+          Alert.alert(
+            'Order Failed',
+            `Failed to place order: ${error.message || 'Unknown error'}`,
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        // For other payment methods, use the existing system
+        const result = await placeOrder(orderData);
+        
+        // Clear cart - using a more general approach
+        cart.items.forEach(item => {
+          cart.removeItem(item.id);
+        });
+        
+        // Navigate to order confirmation
+        Alert.alert(
+          'Order Placed Successfully!',
+          'Your order has been placed and will be delivered soon.',
+          [
+            {
+              text: 'View Orders',
+              onPress: () => navigation.navigate('Orders' as never),
+            },
+            {
+              text: 'Continue Shopping',
+              onPress: () => navigation.navigate('Home' as never),
+            },
+          ]
+        );
+      }
+    } catch (error: any) {
       console.error('Order placement failed:', error);
       Alert.alert(
         'Order Failed',
-        'Failed to place order. Please try again.',
+        `Failed to place order: ${error.message || 'Please try again.'}`,
         [{ text: 'OK' }]
       );
     } finally {
@@ -168,14 +252,52 @@ const CheckoutScreen: React.FC = () => {
   };
 
   const handleAddressSelect = () => {
+    // Create dynamic buttons for each address
+    const addressButtons = userAddresses.map(address => ({
+      text: `${address.label}: ${address.street}, ${address.city}`,
+      onPress: () => {
+        setSelectedAddress(address);
+        // Show confirmation toast
+        console.log(`Selected address: ${address.label}`);
+      },
+    }));
+    
     Alert.alert(
-      'Select Address',
-      'Choose your delivery address',
-      userAddresses.map(address => ({
-        text: address.label,
-        onPress: () => setSelectedAddress(address),
-      })).concat([{ text: 'Cancel', onPress: () => {} }])
+      'Select Delivery Address',
+      'Choose where you want your order delivered',
+      [
+        ...addressButtons,
+        { 
+          text: '➕ Add New Address',
+          onPress: () => {
+            setShowAddressModal(true);
+          } 
+        },
+        { text: 'Cancel', style: 'cancel', onPress: () => {} }
+      ]
     );
+  };
+
+  // Handler for saving a new address
+  const handleAddressSave = (addressData: any) => {
+    // In a real app, you would save this to the database/state management
+    const newAddress: DeliveryAddress = {
+      id: (userAddresses.length + 1).toString(),
+      label: addressData.label,
+      street: addressData.street,
+      apartment: addressData.apartment,
+      city: addressData.city,
+      state: addressData.state,
+      zipCode: addressData.zipCode,
+      country: addressData.country,
+      isDefault: false,
+    };
+    
+    // Set the new address as selected
+    setSelectedAddress(newAddress);
+    
+    // Show confirmation toast
+    Alert.alert('Success', 'Your new address has been added and selected!');
   };
 
   const handlePaymentSelect = () => {
@@ -274,27 +396,27 @@ const CheckoutScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Order Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Items ({cart.itemCount})</Text>
-            <Text style={styles.summaryValue}>AED {cart.subtotal?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.summaryValue}>₹{cart.subtotal?.toFixed(2) || '0.00'}</Text>
           </View>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery</Text>
-            <Text style={styles.summaryValue}>AED {cart.deliveryCharge?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.summaryValue}>₹{cart.deliveryCharge?.toFixed(2) || '0.00'}</Text>
           </View>
           {cart.discount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Discount</Text>
               <Text style={[styles.summaryValue, styles.discountText]}>
-                -AED {cart.discount.toFixed(2)}
+                -₹{cart.discount.toFixed(2)}
               </Text>
             </View>
           )}
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>VAT</Text>
-            <Text style={styles.summaryValue}>AED {cart.vatAmount?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.summaryValue}>₹{cart.vatAmount?.toFixed(2) || '0.00'}</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>AED {cart.total?.toFixed(2) || '0.00'}</Text>
+            <Text style={styles.totalValue}>₹{cart.total?.toFixed(2) || '0.00'}</Text>
           </View>
         </Card>
 
@@ -311,7 +433,7 @@ const CheckoutScreen: React.FC = () => {
                   { text: 'Cancel', style: 'cancel' },
                   { 
                     text: 'Save', 
-                    onPress: (text) => setOrderNotes(text || '') 
+                    onPress: (text: string) => setOrderNotes(text || '') 
                   },
                 ],
                 'plain-text',
@@ -332,7 +454,7 @@ const CheckoutScreen: React.FC = () => {
       {/* Place Order Button */}
       <View style={styles.bottomSection}>
         <Button
-          title={`Place Order • AED ${cart.total?.toFixed(2) || '0.00'}`}
+          title={`Place Order • ₹${cart.total?.toFixed(2) || '0.00'}`}
           onPress={handlePlaceOrder}
           style={styles.placeOrderButton}
           loading={isPlacingOrder || orderLoading}
@@ -340,6 +462,18 @@ const CheckoutScreen: React.FC = () => {
           size="large"
         />
       </View>
+
+      {/* Address Form Modal */}
+      <AddressFormModal 
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        onSave={handleAddressSave}
+        initialValues={{
+          country: 'India',
+          city: 'Hosur',
+          state: 'Tamil Nadu',
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -350,8 +484,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     padding: 16,
+    paddingBottom: 80, // Add padding at bottom to ensure content isn't hidden behind the Place Order button
   },
   section: {
     marginBottom: 16,

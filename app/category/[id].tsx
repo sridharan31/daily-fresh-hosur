@@ -1,16 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { adaptProductsForApp } from '../../lib/adapters/productAdapter';
+import productService from '../../lib/services/productService';
 import { useTheme } from '../../src/hooks/useTheme';
 
 import { Product } from '../../lib/types/product';
@@ -18,175 +20,7 @@ import LoadingScreen from '../../src/components/common/LoadingScreen';
 import ProductCard from '../../src/components/product/ProductCard';
 import { useCart } from '../../src/hooks/useCart';
 
-// Mock data for category products - In real app, this would come from API
-const CATEGORY_PRODUCTS: Record<string, Product[]> = {
-  '1': [ // Fresh Vegetables
-    {
-      id: 'veg1',
-      name: 'Fresh Spinach',
-      price: 8.99,
-      originalPrice: 10.99,
-      unit: 'bunch',
-      category: { id: '1', name: 'Fresh Vegetables', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/228B22/FFFFFF?text=Spinach'],
-      stock: 45,
-      isOrganic: true,
-      tags: ['fresh', 'vegetable', 'organic', 'leafy'],
-      isActive: true,
-      rating: 4.7,
-      reviewCount: 89,
-      description: 'Fresh organic spinach leaves, perfect for salads and cooking.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'veg2',
-      name: 'Red Tomatoes',
-      price: 12.50,
-      unit: 'kg',
-      category: { id: '1', name: 'Fresh Vegetables', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FF6347/FFFFFF?text=Tomato'],
-      stock: 60,
-      isOrganic: false,
-      tags: ['fresh', 'vegetable', 'red'],
-      isActive: true,
-      rating: 4.5,
-      reviewCount: 142,
-      description: 'Fresh red tomatoes, perfect for cooking and salads.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'veg3',
-      name: 'Fresh Carrots',
-      price: 9.75,
-      unit: 'kg',
-      category: { id: '1', name: 'Fresh Vegetables', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FFA500/000000?text=Carrot'],
-      stock: 40,
-      isOrganic: true,
-      tags: ['fresh', 'vegetable', 'organic', 'root'],
-      isActive: true,
-      rating: 4.6,
-      reviewCount: 98,
-      description: 'Organic carrots, sweet and crunchy.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ],
-  '2': [ // Fresh Fruits
-    {
-      id: 'fruit1',
-      name: 'Fresh Bananas',
-      price: 12.99,
-      originalPrice: 15.99,
-      unit: 'kg',
-      category: { id: '2', name: 'Fresh Fruits', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FFE135/000000?text=Banana'],
-      stock: 50,
-      isOrganic: false,
-      tags: ['fresh', 'fruit', 'healthy'],
-      isActive: true,
-      rating: 4.5,
-      reviewCount: 128,
-      description: 'Fresh and ripe bananas, perfect for breakfast or snacks.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'fruit2',
-      name: 'Red Apples',
-      price: 18.50,
-      originalPrice: 20.00,
-      unit: 'kg',
-      category: { id: '2', name: 'Fresh Fruits', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FF0000/FFFFFF?text=Apple'],
-      stock: 75,
-      isOrganic: true,
-      tags: ['fresh', 'fruit', 'organic'],
-      isActive: true,
-      rating: 4.8,
-      reviewCount: 203,
-      description: 'Crisp and sweet red apples, perfect for snacking.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'fruit3',
-      name: 'Fresh Oranges',
-      price: 15.25,
-      unit: 'kg',
-      category: { id: '2', name: 'Fresh Fruits', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FFA500/000000?text=Orange'],
-      stock: 60,
-      isOrganic: false,
-      tags: ['fresh', 'fruit', 'vitamin-c'],
-      isActive: true,
-      rating: 4.6,
-      reviewCount: 156,
-      description: 'Juicy and fresh oranges, packed with vitamin C.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ],
-  '3': [ // Organic Vegetables
-    {
-      id: 'orgveg1',
-      name: 'Organic Broccoli',
-      price: 22.99,
-      unit: 'kg',
-      category: { id: '3', name: 'Organic Vegetables', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/228B22/FFFFFF?text=Broccoli'],
-      stock: 25,
-      isOrganic: true,
-      tags: ['organic', 'vegetable', 'healthy', 'cruciferous'],
-      isActive: true,
-      rating: 4.8,
-      reviewCount: 67,
-      description: 'Fresh organic broccoli, packed with nutrients.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ],
-  '4': [ // Organic Fruits
-    {
-      id: 'orgfruit1',
-      name: 'Organic Strawberries',
-      price: 28.99,
-      unit: '500g',
-      category: { id: '4', name: 'Organic Fruits', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/FF69B4/FFFFFF?text=Strawberry'],
-      stock: 30,
-      isOrganic: true,
-      tags: ['organic', 'fruit', 'berry', 'sweet'],
-      isActive: true,
-      rating: 4.9,
-      reviewCount: 145,
-      description: 'Sweet and juicy organic strawberries.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ],
-  '5': [ // Rice & Grains
-    {
-      id: 'grain1',
-      name: 'Basmati Rice',
-      price: 45.99,
-      unit: '5kg',
-      category: { id: '5', name: 'Rice & Grains', image: '', isActive: true },
-      images: ['https://via.placeholder.com/200x200/DEB887/000000?text=Rice'],
-      stock: 20,
-      isOrganic: false,
-      tags: ['rice', 'grain', 'basmati'],
-      isActive: true,
-      rating: 4.7,
-      reviewCount: 234,
-      description: 'Premium quality Basmati rice.',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-  ]
-};
+// Products will be fetched from Supabase
 
 const SORT_OPTIONS = [
   { label: 'Default', value: 'default' },
@@ -208,6 +42,7 @@ export default function CategoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState('default');
   const [showSortModal, setShowSortModal] = useState(false);
+  const [categoryName, setCategoryName] = useState(name || 'Category');
 
   useEffect(() => {
     loadCategoryProducts();
@@ -216,15 +51,59 @@ export default function CategoryScreen() {
   const loadCategoryProducts = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Try to get the category information
+      let categoryNameToDisplay = name || 'Category';
       
-      const categoryProducts = CATEGORY_PRODUCTS[id || '1'] || [];
-      setProducts(categoryProducts);
-      setFilteredProducts(categoryProducts);
+      console.log(`Loading products for category ID: ${id}, name: ${name}`);
+      
+      // Use our enhanced method that accepts either ID or name
+      const supabaseProducts = await productService.getProductsByCategoryIdentifier(id, 50);
+      
+      console.log(`Retrieved ${supabaseProducts.length} products from Supabase`);
+      if (supabaseProducts.length > 0) {
+        console.log(`First product category info: ID=${supabaseProducts[0].category_id}, name=${supabaseProducts[0].category_en}`);
+      }
+      
+      // If we got products, try to find a better category name
+      if (supabaseProducts.length > 0) {
+        // Use the name from first product's category if available
+        categoryNameToDisplay = supabaseProducts[0].category_en || categoryNameToDisplay;
+      } else {
+        // If no products found, try to get category details directly
+        console.log(`No products found, fetching category details`);
+        const categories = await productService.getCategories();
+        const categoryData = categories.find(cat => cat.id === id || cat.name_en === name);
+        if (categoryData) {
+          console.log(`Found category: ${categoryData.name_en}, ID: ${categoryData.id}`);
+          categoryNameToDisplay = categoryData.name_en;
+        }
+      }
+      
+      // Update category name in state
+      setCategoryName(categoryNameToDisplay);
+      
+      // Convert to app product format
+      const appProducts = adaptProductsForApp(supabaseProducts);
+      
+      // If no products found, try a fallback search
+      if (appProducts.length === 0) {
+        console.log(`No products found for category ID ${id}, trying fallback search`);
+        // Try to get products by searching instead
+        const fallbackProducts = await productService.searchProducts(categoryNameToDisplay, 50);
+        const fallbackAppProducts = adaptProductsForApp(fallbackProducts);
+        setProducts(fallbackAppProducts);
+        setFilteredProducts(fallbackAppProducts);
+      } else {
+        setProducts(appProducts);
+        setFilteredProducts(appProducts);
+      }
     } catch (error) {
       console.error('Error loading category products:', error);
-      Alert.alert('Error', 'Failed to load products. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to load products. Please try again.',
+        [{ text: 'Retry', onPress: loadCategoryProducts }]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -346,36 +225,37 @@ export default function CategoryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Icon name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{name || 'Category'}</Text>
-          <Text style={styles.productCount}>
-            {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-          </Text>
+    <SafeAreaView edges={['top', 'left', 'right']}>
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Icon name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerTitle}>{name || 'Category'}</Text>
+            <Text style={styles.productCount}>
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+            </Text>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={() => setShowSortModal(true)}
+          >
+            <Icon name="sort" size={24} color="#333" />
+          </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={() => setShowSortModal(true)}
-        >
-          <Icon name="sort" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
 
       {/* Products List */}
       <FlatList
         data={filteredProducts}
         renderItem={renderProduct}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item: Product) => item.id}
         numColumns={2}
         contentContainerStyle={styles.productsList}
         showsVerticalScrollIndicator={false}
@@ -399,6 +279,7 @@ export default function CategoryScreen() {
 
       {/* Sort Modal */}
       {renderSortModal()}
+      </View>
     </SafeAreaView>
   );
 }

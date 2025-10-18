@@ -1,19 +1,21 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { router } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { Product } from '../../../lib/types/product';
+import { adaptCategoriesForApp, adaptProductsForApp } from '../../../lib/adapters/productAdapter';
+import productService from '../../../lib/services/productService';
+import { Product, ProductCategory } from '../../../lib/types/product';
 import { FilterModal, FilterOptions } from '../../components/common/FilterModal.web';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import ProductCard from '../../components/product/ProductCard';
@@ -21,89 +23,18 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { useTheme } from '../../hooks/useTheme';
 
-const CATEGORIES = [
-  { id: '1', name: 'Fresh Vegetables', emoji: '🥬' },
-  { id: '2', name: 'Fresh Fruits', emoji: '🍎' },
-  { id: '3', name: 'Organic Vegetables', emoji: '🌱' },
-  { id: '4', name: 'Organic Fruits', emoji: '🍎' },
-  { id: '5', name: 'Rice & Grains', emoji: '�' },
-  { id: '6', name: 'Special Offers', emoji: '💰' },
-];
-
-const FEATURED_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'Organic Bananas',
-    price: 15.99,
-    originalPrice: 18.99,
-    unit: 'kg',
-    category: { id: '2', name: 'Fresh Fruits', image: '', isActive: true },
-    images: ['https://via.placeholder.com/200x200/FFE135/000000?text=🍌+Organic'],
-    stock: 50,
-    isOrganic: true,
-    tags: ['organic', 'fruit', 'healthy', 'premium'],
-    isActive: true,
-    rating: 4.8,
-    reviewCount: 256,
-    description: 'Certified organic bananas, grown without pesticides. Perfect for breakfast or snacks.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Organic Spinach',
-    price: 8.50,
-    originalPrice: 10.00,
-    unit: 'bundle',
-    category: { id: '3', name: 'Organic Vegetables', image: '', isActive: true },
-    images: ['https://via.placeholder.com/200x200/228B22/FFFFFF?text=🌱+Spinach'],
-    stock: 30,
-    isOrganic: true,
-    tags: ['organic', 'vegetable', 'healthy', 'iron-rich'],
-    isActive: true,
-    rating: 4.8,
-    reviewCount: 194,
-    description: 'Certified organic spinach leaves, rich in iron and vitamins. Grown without pesticides.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Basmati Rice (Premium)',
-    price: 24.99,
-    originalPrice: 28.99,
-    unit: 'kg',
-    category: { id: '5', name: 'Rice & Grains', image: '', isActive: true },
-    images: ['https://via.placeholder.com/200x200/F5F5DC/8B4513?text=🌾+Rice'],
-    stock: 200,
-    isOrganic: false,
-    tags: ['rice', 'premium', 'basmati', 'long-grain'],
-    isActive: true,
-    rating: 4.9,
-    reviewCount: 512,
-    description: 'Premium quality Basmati rice with long grains and aromatic fragrance.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Organic Tomatoes',
-    price: 12.99,
-    originalPrice: 15.99,
-    unit: 'kg',
-    category: { id: '3', name: 'Organic Vegetables', image: '', isActive: true },
-    images: ['https://via.placeholder.com/200x200/FF6347/FFFFFF?text=🍅+Organic'],
-    stock: 75,
-    isOrganic: true,
-    tags: ['organic', 'tomato', 'fresh', 'vitamin-c'],
-    isActive: true,
-    rating: 4.6,
-    reviewCount: 328,
-    description: 'Fresh organic tomatoes, perfect for cooking and salads. Rich in lycopene and vitamin C.',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+// Category emojis for UI display
+const CATEGORY_EMOJI_MAP: { [key: string]: string } = {
+  'vegetables': '🥬',
+  'fruits': '�',
+  'organic': '🌱',
+  'dairy': '🥛',
+  'grocery': '🛒',
+  'spices': '🌶️',
+  'frozen': '❄️',
+  'bakery': '🥖',
+  'special_offers': '💰'
+};
 
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -115,12 +46,14 @@ export const HomeScreen: React.FC = () => {
   const styles = createStyles(colors);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [activeFilters, setActiveFilters] = useState<FilterOptions | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -143,12 +76,32 @@ export const HomeScreen: React.FC = () => {
 
   const loadData = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setFeaturedProducts(FEATURED_PRODUCTS);
-      setFilteredProducts(FEATURED_PRODUCTS);
+      setError(null);
+      setIsLoading(true);
+
+      // Fetch categories from Supabase
+      const supabaseCategories = await productService.getCategories();
+      const appCategories = adaptCategoriesForApp(supabaseCategories);
+      setCategories(appCategories);
+
+      // Fetch featured products from Supabase
+      const filters = {
+        isFeatured: true,
+        limit: 10,
+      };
+      const supabaseProducts = await productService.getFeaturedProducts(10);
+      const appProducts = adaptProductsForApp(supabaseProducts);
+      
+      setFeaturedProducts(appProducts);
+      setFilteredProducts(appProducts);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load data. Please try again.');
+      console.error('Error loading data from Supabase:', error);
+      setError('Failed to load products and categories');
+      Alert.alert(
+        'Error',
+        'Failed to load products and categories. Please try again.',
+        [{ text: 'Retry', onPress: loadData }]
+      );
     } finally {
       setIsLoading(false);
     }
@@ -286,21 +239,27 @@ export const HomeScreen: React.FC = () => {
     );
   };
 
-  const renderCategory = ({ item }: { item: typeof CATEGORIES[0] }) => (
-    <TouchableOpacity
-      style={styles.categoryCard}
-      onPress={() => handleCategoryPress(item)}
-    >
-      <Text style={styles.categoryEmoji}>{item.emoji}</Text>
-      <Text 
-        style={styles.categoryName}
-        numberOfLines={2}
-        ellipsizeMode="tail"
+  const renderCategory = ({ item }: { item: ProductCategory }) => {
+    // Get emoji based on category name
+    const categoryKey = item.name.toLowerCase().replace(/\s+/g, '_');
+    const emoji = CATEGORY_EMOJI_MAP[categoryKey] || '🛍️';
+    
+    return (
+      <TouchableOpacity
+        style={styles.categoryCard}
+        onPress={() => handleCategoryPress(item)}
       >
-        {item.name}
-      </Text>
-    </TouchableOpacity>
-  );
+        <Text style={styles.categoryEmoji}>{emoji}</Text>
+        <Text 
+          style={styles.categoryName}
+          numberOfLines={2}
+          ellipsizeMode="tail"
+        >
+          {item.name}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
 
   const renderProduct = ({ item, index }: { item: Product; index: number }) => (
     <View style={[styles.productItem, index % 2 === 1 && styles.productItemRight]}>
@@ -330,9 +289,9 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Shop by Category</Text>
           <FlatList
-            data={CATEGORIES}
+            data={categories}
             renderItem={renderCategory}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: ProductCategory) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoriesList}
@@ -352,7 +311,7 @@ export const HomeScreen: React.FC = () => {
           <FlatList
             data={filteredProducts}
             renderItem={renderProduct}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item: Product) => item.id}
             numColumns={2}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.productsList}

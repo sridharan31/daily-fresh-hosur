@@ -1,7 +1,12 @@
  // app/components/cart/CartSummary.tsx
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native-web';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
 import { CartState } from '../../../lib/types/cart';
 import Config from '../../config/environment';
@@ -27,6 +32,13 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Order Summary</Text>
+      
+      {/* Display savings badge if discount is applied */}
+      {cart.discount > 0 && (
+        <View style={styles.savingsBadge}>
+          <Text style={styles.savingsText}>You're saving {priceCalculator.formatPrice(cart.discount)}</Text>
+        </View>
+      )}
       
       {/* Subtotal */}
       <View style={styles.row}>
@@ -84,9 +96,9 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         </View>
       )}
 
-      {/* VAT */}
+      {/* GST */}
       <View style={styles.row}>
-        <Text style={styles.label}>{priceCalculator.getVATDisplayText()}</Text>
+        <Text style={styles.label}>{priceCalculator.getGSTDisplayText()}</Text>
         <Text style={styles.value}>
           {priceCalculator.formatPrice(cart.vatAmount)}
         </Text>

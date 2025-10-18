@@ -205,7 +205,7 @@ class ProductService {
     }
   }
 
-  // Get products by category
+  // Get products by category name
   async getProductsByCategory(category: string, limit: number = 20): Promise<Product[]> {
     try {
       const { data, error } = await supabase
@@ -223,6 +223,74 @@ class ProductService {
       return data || [];
     } catch (error) {
       console.error('Get products by category error:', error);
+      throw error;
+    }
+  }
+  
+  // Get products by category ID or name (flexible function)
+  async getProductsByCategoryIdentifier(identifier: string, limit: number = 20): Promise<Product[]> {
+    try {
+      let products: Product[] = [];
+
+      // First try to find products directly by category_id
+      const { data: productsByIdData, error: productsByIdError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .eq('category_id', identifier)
+        .gt('stock_quantity', 0)
+        .order('is_featured', { ascending: false })
+        .order('rating', { ascending: false })
+        .limit(limit);
+
+      if (!productsByIdError && productsByIdData && productsByIdData.length > 0) {
+        // Found products directly by category_id
+        console.log(`Found ${productsByIdData.length} products by category_id`);
+        return productsByIdData;
+      }
+      
+      // If no products found by category_id, try to find the category by ID
+      const { data: categoryData, error: categoryError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', identifier)
+        .single();
+      
+      if (categoryData) {
+        // If category found by ID, use its name to get products by category_en
+        console.log(`Found category by ID: ${categoryData.name_en}`);
+        const { data: productsByNameData, error: productsByNameError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('is_active', true)
+          .eq('category_en', categoryData.name_en.toLowerCase())
+          .gt('stock_quantity', 0)
+          .order('is_featured', { ascending: false })
+          .order('rating', { ascending: false })
+          .limit(limit);
+          
+        if (!productsByNameError && productsByNameData && productsByNameData.length > 0) {
+          return productsByNameData;
+        }
+      }
+      
+      // If still no products found or no category matched, try as a direct category name
+      console.log(`Trying identifier as category name: ${identifier}`);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .or(`category_en.eq.${identifier},category_en.ilike.${identifier}`)
+        .gt('stock_quantity', 0)
+        .order('is_featured', { ascending: false })
+        .order('rating', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+
+      return data || [];
+    } catch (error) {
+      console.error('Get products by category identifier error:', error);
       throw error;
     }
   }

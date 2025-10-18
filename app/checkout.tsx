@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
 import { router } from 'expo-router';
-import { useSelector } from 'react-redux';
-import { RootState } from '../lib/store';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AuthService } from '../lib/services/authService';
+import { AppDispatch, RootState } from '../lib/store';
+import { clearCart, fetchCart } from '../lib/store/slices/cartSlice';
+import { fromSupabaseAddress, toSupabaseAddress } from '../lib/utils/addressUtils';
 import { useCart } from '../src/hooks/useCart';
+import AddressFormModal, { Address } from './components/AddressFormModal';
 
 // Web-compatible CSS
 if (typeof window !== 'undefined') {
@@ -21,47 +25,171 @@ interface DeliveryAddress {
   isDefault: boolean;
 }
 
-const mockAddresses: DeliveryAddress[] = [
-  {
-    id: '1',
-    type: 'home',
-    name: 'Home',
-    address: '123 Green Valley Apartments, MG Road',
-    city: 'Hosur',
-    state: 'Tamil Nadu',
-    pincode: '635109',
-    phone: '+91 9876543210',
-    isDefault: true,
-  },
-  {
-    id: '2',
-    type: 'work',
-    name: 'Office',
-    address: '456 Tech Park, Electronic City',
-    city: 'Hosur',
-    state: 'Tamil Nadu',
-    pincode: '635110',
-    phone: '+91 9876543210',
-    isDefault: false,
-  }
-];
+// Address types defined here instead of mock data
+// Addresses will be loaded from Supabase user_addresses table
+// Cart items are stored in the cart_items table with the following schema:
+// - id: UUID (primary key)
+// - user_id: UUID (foreign key to users table)
+// - product_id: UUID (foreign key to products table)
+// - quantity: INTEGER
+// - created_at: TIMESTAMP
+// - updated_at: TIMESTAMP
+//
+// Cart Synchronization Flow:
+// 1. When user is authenticated, cart items are fetched from Supabase cart_items table
+// 2. Items are stored in Redux state through cartSlice
+// 3. The useCart hook provides access to cart items and calculated totals
+// 4. Adding/removing items triggers both Redux update and Supabase sync
+// 5. RLS policies ensure users can only access their own cart items
 
 export default function CheckoutScreen() {
   const { user } = useSelector((state: RootState) => state.auth);
+  const cartState = useSelector((state: RootState) => state.cart);
   const { items, subtotal, deliveryCharge, discount, vatAmount, total, itemCount } = useCart();
+  const dispatch = useDispatch<AppDispatch>();
   
-  const [selectedAddress, setSelectedAddress] = useState<string>(mockAddresses[0].id);
+  // Initialize auth service for address operations
+  const authService = new AuthService();
+  
+  // Cart state from Redux store is synchronized with Supabase cart_items table
+  
+  // Fetch cart items from Supabase when component mounts
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
+  
+  const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAddressLoading, setIsAddressLoading] = useState(true);
 
   const handleBack = () => {
     router.back();
   };
 
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>([]);
+  
+  // Load addresses from Supabase when component mounts
+  useEffect(() => {
+    async function loadAddresses() {
+      if (!user?.id) return;
+      
+      setIsAddressLoading(true);
+      try {
+        const addresses = await authService.getUserAddresses();
+        
+        // Map the Supabase address format to our DeliveryAddress format
+        const mappedAddresses: DeliveryAddress[] = addresses.map((addr: any) => {
+          const formattedAddress = fromSupabaseAddress(addr, user.full_name);
+          return {
+            id: addr.id,
+            type: formattedAddress.type,
+            name: formattedAddress.name,
+            address: addr.address_line_1 + (addr.address_line_2 ? `, ${addr.address_line_2}` : ''),
+            city: addr.city,
+            state: addr.state,
+            pincode: addr.pincode,
+            phone: user.phone || '',
+            isDefault: addr.is_default
+          };
+        });
+        
+        setSavedAddresses(mappedAddresses);
+        
+        // Set selected address to default or first address if exists
+        const defaultAddress = mappedAddresses.find(addr => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddress(defaultAddress.id);
+        } else if (mappedAddresses.length > 0) {
+          setSelectedAddress(mappedAddresses[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to load addresses:', error);
+        // Display error but don't set any addresses
+        setSavedAddresses([]);
+      } finally {
+        setIsAddressLoading(false);
+      }
+    }
+    
+    loadAddresses();
+  }, [user?.id]);
+  
   const handleAddAddress = () => {
-    // This would normally open an address form modal or navigate to address screen
-    alert('Add address functionality to be implemented');
+    // Open the address form modal
+    setAddressModalVisible(true);
+  };
+
+  const handleSaveAddress = async (address: Address) => {
+    try {
+      setIsLoading(true);
+      
+      // Convert to Supabase format using our utility
+      const supabaseAddress = toSupabaseAddress(address);
+      
+      // Save to Supabase
+      const savedAddress = await authService.addAddress(supabaseAddress);
+      
+      if (!savedAddress) {
+        throw new Error('Failed to save address');
+      }
+      
+      // Create a new DeliveryAddress from the saved data
+      const newAddress: DeliveryAddress = {
+        id: savedAddress.id,
+        type: address.type,
+        name: address.name,
+        address: address.street,
+        city: address.city,
+        state: address.state,
+        pincode: address.pincode,
+        phone: address.phone,
+        isDefault: savedAddress.is_default
+      };
+      
+      // Update local state
+      let updatedAddresses;
+      
+      if (newAddress.isDefault) {
+        // Update all addresses to not be default if this one is default
+        updatedAddresses = savedAddresses.map(addr => ({
+          ...addr,
+          isDefault: false
+        }));
+        updatedAddresses.push(newAddress);
+      } else {
+        updatedAddresses = [...savedAddresses, newAddress];
+      }
+      
+      setSavedAddresses(updatedAddresses);
+      setSelectedAddress(newAddress.id);
+    } catch (error) {
+      console.error('Error saving address:', error);
+      alert('Failed to save address. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setAddressModalVisible(false);
+    }
+  };
+
+  // Clear cart function using hook from useCart
+  const handleClearCart = async () => {
+    // Show confirmation dialog
+    if (window.confirm('Are you sure you want to clear your cart?')) {
+      try {
+        setIsLoading(true);
+        // Dispatch the clear cart action
+        dispatch(clearCart());
+        alert('Cart cleared successfully');
+      } catch (error) {
+        console.error('Error clearing cart:', error);
+        alert('Failed to clear cart. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -70,10 +198,15 @@ export default function CheckoutScreen() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mock order placement
+      // Order data preparation
+      // In a complete implementation, this would:
+      // 1. Create a record in the 'orders' table
+      // 2. Create records in the 'order_items' table for each item
+      // 3. Clear the user's cart_items from Supabase
+      // 4. Record the delivery address from user_addresses
       const orderData = {
         items,
-        selectedAddress: mockAddresses.find(addr => addr.id === selectedAddress),
+        selectedAddress: savedAddresses.find(addr => addr.id === selectedAddress),
         paymentMethod,
         specialInstructions,
         pricing: {
@@ -87,6 +220,9 @@ export default function CheckoutScreen() {
 
       console.log('Order placed:', orderData);
       
+      // Clear the cart after successful order placement
+      dispatch(clearCart());
+      
       // Navigate to order confirmation
       router.replace('/order-confirmation');
     } catch (error) {
@@ -97,10 +233,17 @@ export default function CheckoutScreen() {
     }
   };
 
-  const selectedAddressData = mockAddresses.find(addr => addr.id === selectedAddress);
+  const selectedAddressData = savedAddresses.find(addr => addr.id === selectedAddress);
 
   return (
     <div style={styles.container}>
+      {/* Address Form Modal */}
+      <AddressFormModal 
+        visible={addressModalVisible}
+        onClose={() => setAddressModalVisible(false)}
+        onSave={handleSaveAddress}
+      />
+
       {/* Header */}
       <div style={styles.header}>
         <button style={styles.backButton} onClick={handleBack}>
@@ -114,6 +257,52 @@ export default function CheckoutScreen() {
         {/* Order Summary */}
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Order Summary</h2>
+          
+          {/* Cart Items List */}
+          <div style={styles.cartItems}>
+            <div style={styles.cartHeader}>
+              <h3 style={styles.cartTitle}>Cart Items</h3>
+              {items.length > 0 && (
+                <button 
+                  onClick={handleClearCart} 
+                  style={styles.clearCartButton}
+                  disabled={isLoading}
+                >
+                  Clear Cart
+                </button>
+              )}
+            </div>
+            
+            {cartState.isLoading ? (
+              <div style={{padding: '20px', textAlign: 'center'}}>
+                <p>Loading cart items...</p>
+              </div>
+            ) : items.length === 0 ? (
+              <div style={{padding: '20px', textAlign: 'center'}}>
+                <p>Your cart is empty. Add items to proceed with checkout.</p>
+              </div>
+            ) : (
+              items.map((item: any) => (
+                <div key={item.id} style={styles.cartItem}>
+                  <div style={styles.cartItemInfo}>
+                    <div style={styles.cartItemImage}>
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                      ) : (
+                        <div style={{backgroundColor: '#f0f0f0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>No image</div>
+                      )}
+                    </div>
+                    <div style={styles.cartItemDetails}>
+                      <h4 style={styles.cartItemName}>{item.name}</h4>
+                      <p style={styles.cartItemPrice}>₹{item.price.toFixed(2)} × {item.quantity} {item.unit}</p>
+                    </div>
+                  </div>
+                  <div style={styles.cartItemTotal}>₹{item.totalPrice.toFixed(2)}</div>
+                </div>
+              ))
+            )}
+          </div>
+          
           <div style={styles.orderSummary}>
             <div style={styles.summaryRow}>
               <span>Items ({itemCount})</span>
@@ -149,15 +338,24 @@ export default function CheckoutScreen() {
             </button>
           </div>
           <div style={styles.addressList}>
-            {mockAddresses.map((address) => (
-              <div
-                key={address.id}
-                style={{
-                  ...styles.addressCard,
-                  ...(selectedAddress === address.id ? styles.addressCardSelected : {})
-                }}
-                onClick={() => setSelectedAddress(address.id)}
-              >
+            {isAddressLoading ? (
+              <div style={{padding: '20px', textAlign: 'center'}}>
+                <p>Loading addresses...</p>
+              </div>
+            ) : savedAddresses.length === 0 ? (
+              <div style={{padding: '20px', textAlign: 'center'}}>
+                <p>No saved addresses found. Add your first address.</p>
+              </div>
+            ) : (
+              savedAddresses.map((address) => (
+                <div
+                  key={address.id}
+                  style={{
+                    ...styles.addressCard,
+                    ...(selectedAddress === address.id ? styles.addressCardSelected : {})
+                  }}
+                  onClick={() => setSelectedAddress(address.id)}
+                >
                 <div style={styles.addressHeader}>
                   <div style={styles.addressType}>
                     <span style={styles.addressIcon}>
@@ -181,7 +379,7 @@ export default function CheckoutScreen() {
                 </p>
                 <p style={styles.addressPhone}>📞 {address.phone}</p>
               </div>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -261,10 +459,17 @@ export default function CheckoutScreen() {
           <button
             style={{
               ...styles.placeOrderButton,
-              ...(isLoading ? styles.placeOrderButtonDisabled : {})
+              ...((isLoading || !selectedAddress || items.length === 0) ? styles.placeOrderButtonDisabled : {})
             }}
             onClick={handlePlaceOrder}
-            disabled={isLoading}
+            disabled={isLoading || !selectedAddress || items.length === 0}
+            title={
+              !selectedAddress 
+                ? 'Please select a delivery address' 
+                : items.length === 0 
+                ? 'Your cart is empty' 
+                : ''
+            }
           >
             {isLoading ? 'Placing Order...' : 'Place Order'}
           </button>
@@ -276,11 +481,87 @@ export default function CheckoutScreen() {
 
 const styles = {
   container: {
-    display: 'flex',
-    flexDirection: 'column' as const,
+    display: 'flex', 
+    flexDirection: 'column' as 'column',
     minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
+    maxHeight: '100vh',
+    backgroundColor: '#f8f9fa',
     fontFamily: 'Arial, sans-serif',
+    overflow: 'hidden',
+  },
+  cartItems: {
+    marginBottom: '20px',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    padding: '10px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  },
+  cartHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '15px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #eee',
+  },
+  cartTitle: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: 'bold' as 'bold',
+  },
+  clearCartButton: {
+    backgroundColor: '#ff4d4f',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    padding: '5px 10px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s',
+    ':hover': {
+      backgroundColor: '#ff7875',
+    },
+    ':disabled': {
+      backgroundColor: '#ffccc7',
+      cursor: 'not-allowed',
+    },
+  },
+  cartItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 0',
+    borderBottom: '1px solid #eee',
+  },
+  cartItemInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    flex: 1,
+  },
+  cartItemImage: {
+    width: '50px',
+    height: '50px',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    marginRight: '12px',
+    backgroundColor: '#f0f0f0',
+  },
+  cartItemDetails: {
+    flex: 1,
+  },
+  cartItemName: {
+    margin: '0 0 4px 0',
+    fontSize: '14px',
+    fontWeight: 'bold' as 'bold',
+  },
+  cartItemPrice: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#666',
+  },
+  cartItemTotal: {
+    fontWeight: 'bold' as 'bold',
+    fontSize: '14px',
   },
   header: {
     display: 'flex',
@@ -312,6 +593,8 @@ const styles = {
     flex: 1,
     padding: '20px',
     paddingBottom: '120px', // Space for footer
+    overflowY: 'auto' as const,
+    WebkitOverflowScrolling: 'touch' as const,
   },
   section: {
     backgroundColor: '#ffffff',
