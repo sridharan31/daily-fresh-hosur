@@ -1,128 +1,23 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import authService from '../../services/api/authService';
-import { ApiResponse } from '../../types/api';
-import { AuthState, LoginCredentials, OTPVerification, RegisterData, User } from '../../types/auth';
-import { checkSupabaseSession, supabaseLoginUser } from '../actions/supabaseAuthActions';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { User } from '../../supabase/services/auth';
+import {
+    checkSession,
+    loginUser,
+    logoutUser,
+    registerUser,
+    resetPassword,
+    updatePassword,
+    updateUserProfile
+} from '../actions/authActions';
 
-// Async thunks
-export const loginUser = createAsyncThunk<
-  {user: User; token: string},
-  LoginCredentials,
-  {rejectValue: string}
->(
-  'auth/login',
-  async (credentials, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{user: User; token: string}> = await authService.login(credentials);
-      console.log('🔐 Raw login response:', response);
-      // Extract the actual data from the response
-      if (response.success && response.data) {
-        return response.data;
-      } else {
-        throw new Error(response.message || 'Login failed');
-      }
-    } catch (error: any) {
-      console.error('🔐 Login error:', error);
-      return rejectWithValue(error.response?.data?.message || error.message || 'Login failed');
-    }
-  }
-);
-
-export const registerUser = createAsyncThunk<
-  {message: string; token: string},
-  RegisterData,
-  {rejectValue: string}
->(
-  'auth/register',
-  async (userData, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{message: string; token: string}> = await authService.register(userData);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Registration failed');
-    }
-  }
-);
-
-export const verifyOTP = createAsyncThunk<
-  {user: User; token: string},
-  OTPVerification,
-  {rejectValue: string}
->(
-  'auth/verifyOTP',
-  async (otpData, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{user: User; token: string}> = await authService.verifyOTP(otpData);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'OTP verification failed');
-    }
-  }
-);
-
-export const resetPassword = createAsyncThunk<
-  {message: string},
-  {token: string; email: string; newPassword: string},
-  {rejectValue: string}
->(
-  'auth/resetPassword',
-  async ({token, newPassword}, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{message: string}> = await authService.resetPassword(token, newPassword);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Password reset failed');
-    }
-  }
-);
-
-export const forgotPassword = createAsyncThunk<
-  {message: string},
-  string,
-  {rejectValue: string}
->(
-  'auth/forgotPassword',
-  async (email, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{message: string}> = await authService.forgotPassword(email);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Password reset request failed');
-    }
-  }
-);
-
-export const updateUserProfile = createAsyncThunk<
-  User,
-  Partial<User>,
-  {rejectValue: string}
->(
-  'auth/updateUserProfile',
-  async (userData, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<User> = await authService.updateProfile(userData);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Profile update failed');
-    }
-  }
-);
-
-export const changePassword = createAsyncThunk<
-  {message: string},
-  {currentPassword: string; newPassword: string},
-  {rejectValue: string}
->(
-  'auth/changePassword',
-  async ({currentPassword, newPassword}, {rejectWithValue}) => {
-    try {
-      const response: ApiResponse<{message: string}> = await authService.changePassword(currentPassword, newPassword);
-      return response.data!;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Password change failed');
-    }
-  }
-);
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  message: string | null;
+}
 
 const initialState: AuthState = {
   user: null,
@@ -130,27 +25,22 @@ const initialState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   error: null,
-  otpVerificationRequired: false,
+  message: null
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout: (state) => {
-      state.user = null;
-      state.token = null;
-      state.isAuthenticated = false;
-      state.error = null;
-    },
     clearError: (state) => {
       state.error = null;
     },
-    updateProfile: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.user) {
-        state.user = {...state.user, ...action.payload};
-      }
+    clearMessage: (state) => {
+      state.message = null;
     },
+    setMessage: (state, action: PayloadAction<string>) => {
+      state.message = action.payload;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -160,121 +50,128 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(loginUser.fulfilled, (state, action) => {
-        console.log('🔐 Login successful, updating auth state:', action.payload);
-        console.log('🔐 User data received:', action.payload.user);
-        console.log('🔐 User role:', action.payload.user?.role);
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
-        console.log('🔐 Auth state updated:', { 
-          isAuthenticated: state.isAuthenticated, 
-          userRole: state.user?.role,
-          userEmail: state.user?.email 
-        });
+        if (action.payload) {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          state.isAuthenticated = true;
+        }
+        state.error = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Login failed';
       })
+      
       // Register
       .addCase(registerUser.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(registerUser.fulfilled, (state) => {
+      .addCase(registerUser.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.otpVerificationRequired = true;
+        if (action.payload) {
+          state.message = action.payload.message;
+        }
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Registration failed';
       })
-      // OTP Verification
-      .addCase(verifyOTP.fulfilled, (state, action) => {
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
-        state.otpVerificationRequired = false;
-      })
-      // Supabase Login
-      .addCase(supabaseLoginUser.pending, (state) => {
+      
+      // Check session
+      .addCase(checkSession.pending, (state) => {
         state.isLoading = true;
-        state.error = null;
       })
-      .addCase(supabaseLoginUser.fulfilled, (state, action) => {
-        console.log('🔐 Supabase login successful, updating auth state:', action.payload);
+      .addCase(checkSession.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.isAuthenticated = true;
-        console.log('🔐 Auth state updated with Supabase data');
-      })
-      .addCase(supabaseLoginUser.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Supabase login failed';
-      })
-      // Check Supabase Session
-      .addCase(checkSupabaseSession.fulfilled, (state, action) => {
         if (action.payload) {
           state.user = action.payload.user;
           state.token = action.payload.token;
           state.isAuthenticated = true;
-          console.log('🔐 Existing session restored');
+        } else {
+          state.user = null;
+          state.token = null;
+          state.isAuthenticated = false;
         }
       })
-      // Reset Password
-      .addCase(resetPassword.pending, (state) => {
+      .addCase(checkSession.rejected, (state) => {
+        state.isLoading = false;
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
+      })
+      
+      // Logout
+      .addCase(logoutUser.pending, (state) => {
         state.isLoading = true;
+      })
+      .addCase(logoutUser.fulfilled, (state) => {
+        state.isLoading = false;
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
         state.error = null;
       })
-      .addCase(resetPassword.fulfilled, (state) => {
+      .addCase(logoutUser.rejected, (state) => {
         state.isLoading = false;
+        // Still clean up state even if logout API call fails
+        state.user = null;
+        state.token = null;
+        state.isAuthenticated = false;
       })
-      .addCase(resetPassword.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Password reset failed';
-      })
-      // Forgot Password
-      .addCase(forgotPassword.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(forgotPassword.fulfilled, (state) => {
-        state.isLoading = false;
-      })
-      .addCase(forgotPassword.rejected, (state, action) => {
-        state.isLoading = false;
-        state.error = action.payload || 'Password reset request failed';
-      })
-      // Update Profile
+      
+      // Update profile
       .addCase(updateUserProfile.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(updateUserProfile.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
+        if (action.payload) {
+          state.user = action.payload;
+        }
+        state.message = 'Profile updated successfully';
       })
       .addCase(updateUserProfile.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Profile update failed';
       })
-      // Change Password
-      .addCase(changePassword.pending, (state) => {
+      
+      // Reset password (request)
+      .addCase(resetPassword.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(changePassword.fulfilled, (state) => {
+      .addCase(resetPassword.fulfilled, (state, action) => {
         state.isLoading = false;
+        if (action.payload) {
+          state.message = action.payload.message;
+        }
       })
-      .addCase(changePassword.rejected, (state, action) => {
+      .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload || 'Password change failed';
+        state.error = action.payload || 'Password reset request failed';
+      })
+      
+      // Update password
+      .addCase(updatePassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updatePassword.fulfilled, (state, action) => {
+        state.isLoading = false;
+        if (action.payload) {
+          state.message = action.payload.message;
+        }
+      })
+      .addCase(updatePassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Password update failed';
       });
   },
 });
 
-export const {logout, clearError, updateProfile} = authSlice.actions;
+export const { clearError, clearMessage, setMessage } = authSlice.actions;
 export default authSlice.reducer;
 

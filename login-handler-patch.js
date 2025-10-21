@@ -153,5 +153,5 @@ useEffect(() => {
 // 4. Import the necessary action
 // Add to imports:
 /*
-import { supabaseLoginUser, checkSupabaseSession } from '../../../lib/store/actions/supabaseAuthActions';
+import { loginUser, checkSession } from '../../../lib/supabase/store/actions/authActions';
 */

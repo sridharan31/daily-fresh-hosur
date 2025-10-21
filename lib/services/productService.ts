@@ -525,25 +525,57 @@ class ProductService {
   // Get product reviews
   async getProductReviews(productId: string, limit: number = 10, offset: number = 0) {
     try {
-      const { data, error } = await supabase
+      // Make the query more resilient to handle various product ID formats
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productId);
+
+      // Check if there's cached data for this product to avoid excessive API calls
+      const cachedReviews = this.reviewCache?.[productId];
+      if (cachedReviews) {
+        return cachedReviews;
+      }
+      
+      // Build a more resilient query
+      const query = supabase
         .from('product_reviews')
         .select(`
           *,
-          users!product_reviews_user_id_fkey(full_name, avatar_url)
+          users!inner(full_name, avatar_url)
         `)
-        .eq('product_id', productId)
         .eq('is_approved', true)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
-      if (error) throw error;
+      // Apply product filter based on the ID format
+      if (isUUID) {
+        query.eq('product_id', productId);
+      } else {
+        // If it's not a UUID, try matching either by id or by a slug-like field
+        query.or(`product_id.eq.${productId},slug.eq.${productId}`);
+      }
+
+      const { data, error } = await query;
+
+      // Handle potential errors more gracefully
+      if (error) {
+        console.warn('Review query error:', error);
+        // Return empty array instead of throwing
+        return [];
+      }
+
+      // Cache the results for this session
+      if (!this.reviewCache) this.reviewCache = {};
+      this.reviewCache[productId] = data || [];
 
       return data || [];
     } catch (error) {
       console.error('Get product reviews error:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent UI errors
+      return [];
     }
   }
+  
+  // Cache for reviews to prevent repeated API calls
+  private reviewCache: Record<string, any[]> = {};
 
   // Add product review
   async addProductReview(

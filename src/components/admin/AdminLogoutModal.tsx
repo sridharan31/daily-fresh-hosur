@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { logout } from '../../../lib/store/slices/authSlice';
+import { logoutUser as logout } from '../../../lib/supabase/store/actions/authActions';
 import Button from '../common/Button';
 
 interface AdminLogoutModalProps {

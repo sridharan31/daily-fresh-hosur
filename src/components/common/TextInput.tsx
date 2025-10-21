@@ -1,6 +1,7 @@
 import React, { forwardRef } from 'react';
-import { TextInput as RNTextInput, StyleSheet, Text, TextInputProps, View } from 'react-native';
+import type { TextInputProps } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { TextInput as RNTextInput, StyleSheet, Text, View } from '../ui/WebCompatibleComponents';
 
 interface CustomTextInputProps extends TextInputProps {
   label?: string;

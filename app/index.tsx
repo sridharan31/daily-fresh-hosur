@@ -7,12 +7,12 @@ if (typeof window !== 'undefined') {
 
 import React, { useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Dimensions,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
@@ -84,7 +84,7 @@ export default function Index() {
   const handleAdminAccess = () => {
     // Navigate to admin login screen
     console.log('� Navigating to admin login');
-    router.push('/admin');
+    router.push('/admin-auth');
   };
 
   const handleGuestAccess = () => {

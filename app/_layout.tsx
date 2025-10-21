@@ -58,11 +58,12 @@ import { Stack } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
 import NativeWindProvider from '../src/components/common/NativeWindProvider';
 import { ThemeProvider } from '../src/contexts/ThemeContext';
 
-// Store
-import { store } from '../lib/store';
+// Store - Import from Supabase store
+import { persistor, store } from '../lib/supabase/store';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -89,10 +90,13 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <Provider store={store}>
-          <NativeWindProvider>
-            <ThemeProvider>
-              <Stack>
-                <Stack.Screen name="index" options={{ headerShown: false }} />
+          <PersistGate loading={null} persistor={persistor}>
+            <NativeWindProvider>
+              <ThemeProvider>
+                {/* Initialize session on app startup */}
+                {React.createElement(require('../src/components/auth/SessionInitializer').default)}
+                <Stack>
+                  <Stack.Screen name="index" options={{ headerShown: false }} />
                 <Stack.Screen 
                   name="admin" 
                   options={{ 
@@ -152,6 +156,7 @@ export default function RootLayout() {
               </Stack>
             </ThemeProvider>
           </NativeWindProvider>
+          </PersistGate>
         </Provider>
       </QueryClientProvider>
     </GestureHandlerRootView>

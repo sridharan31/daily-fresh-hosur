@@ -76,6 +76,10 @@ npx expo start
 **Problem**: Method signatures didn't match Supabase service
 **Solution**: Updated method calls and return type handling
 
+### ✅ Fixed: Admin Dashboard Error
+**Problem**: Admin dashboard failed with error "Cannot destructure property 'dashboardData' of useSelector(...) as it is undefined"
+**Solution**: Created adminSlice in Supabase store and updated AdminDashboardScreen to use it with proper fallbacks
+
 ## 📱 TESTING COMMANDS
 
 ```bash

@@ -1,16 +1,15 @@
  import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState, persistor } from '../../lib/store';
+import { AppDispatch } from '../../lib/supabase/store';
 import {
-    changePassword,
-    forgotPassword,
+    updatePassword as changePassword,
     loginUser,
-    logout,
+    logoutUser as logout,
     registerUser,
     resetPassword,
-    updateUserProfile,
-    verifyOTP
-} from '../../lib/store/slices/authSlice';
+    updateUserProfile
+} from '../../lib/supabase/store/actions/authActions';
+import { RootState } from '../../lib/supabase/store/rootReducer';
 import { LoginCredentials, OTPVerification, RegisterData, User } from '../../lib/types/auth';
 
 export const useAuth = () => {

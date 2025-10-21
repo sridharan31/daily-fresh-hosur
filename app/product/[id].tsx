@@ -1,14 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -87,10 +87,51 @@ export default function ProductDetailScreen() {
   const loadProductDetails = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log(`Loading product details for ID: ${id}`);
       
-      const productData = MOCK_PRODUCTS[id || ''] || MOCK_PRODUCTS['fruit1'];
+      // Import productService here to avoid circular dependencies
+      const productService = require('../../lib/services/productService').default;
+      
+      // Try to fetch the product from Supabase first
+      let productData = null;
+      try {
+        productData = await productService.getProductById(id);
+        console.log('Product data from Supabase:', productData ? 'found' : 'not found');
+      } catch (error) {
+        console.error('Error fetching from Supabase:', error);
+      }
+      
+      // If no product found, fall back to mock data
+      if (!productData) {
+        console.log('Falling back to mock data');
+        productData = MOCK_PRODUCTS[id || ''] || MOCK_PRODUCTS['fruit1'];
+      } else {
+        // Convert from Supabase format to app format
+        productData = {
+          id: productData.id,
+          name: productData.name_en,
+          price: productData.price,
+          originalPrice: productData.mrp,
+          unit: productData.unit,
+          category: { 
+            id: productData.category_id || '', 
+            name: productData.category_en || '', 
+            image: '', 
+            isActive: true 
+          },
+          images: productData.images || [],
+          stock: productData.stock_quantity,
+          isOrganic: productData.is_organic,
+          tags: productData.tags || [],
+          isActive: productData.is_active,
+          rating: productData.rating || 0,
+          reviewCount: productData.review_count || 0,
+          description: productData.description_en || '',
+          createdAt: productData.created_at,
+          updatedAt: productData.updated_at
+        };
+      }
+      
       setProduct(productData);
       
       // Check if already in cart

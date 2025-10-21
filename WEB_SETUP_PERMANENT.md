@@ -7,6 +7,7 @@ This project has been configured with **permanent web-stubs** that will work for
 1. **Redux Error**: Fixed duplicate action reducer in `adminSlice.ts`
 2. **React Native Module Resolution**: Created permanent web-stubs in `/web-stubs/` directory
 3. **Metro Configuration**: Updated `metro.config.js` to use permanent stubs
+4. **Environment Variables**: Added proper configuration for Supabase environment variables
 
 ## 🔧 **Permanent Web-Stubs Created:**
 
@@ -78,4 +79,25 @@ No additional setup or manual fixes needed.
 - The Redux error has been permanently fixed
 - All React Native core modules have web-compatible stubs
 - Metro bundler is configured to use these stubs automatically
+- Environment variables are needed for Supabase authentication
+
+## 🔑 **Environment Variables Setup**
+
+Make sure your `.env` file contains:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://yvjxgoxrzkcjvuptblri.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2anhnb3hyemtjanZ1cHRibHJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAyNTA1ODAsImV4cCI6MjA3NTgyNjU4MH0.uEuXA4gBDoK8ARKJ_CA6RFgd8sVA1OZ763BD-lUmplk
+```
+
+And install dotenv:
+
+```bash
+npm install dotenv --save
+```
+
+The app uses a combination of:
+1. app.config.js to load environment variables
+2. Hardcoded fallback values for development
+3. Runtime access via Constants.expoConfig.extra
 - The solution works for both development and production builds

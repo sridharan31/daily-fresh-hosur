@@ -1,16 +1,16 @@
  // app/components/cart/CartItem.tsx
 import React, { useState } from 'react';
-import {
-  Alert,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
-} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
 import { CartItem as CartItemType } from '../../../lib/types/cart';
+import {
+    Alert,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from '../../components/ui/WebCompatibleComponents';
 import { useTheme } from '../../hooks/useTheme';
 
 interface CartItemProps {
@@ -43,7 +43,12 @@ const CartItem: React.FC<CartItemProps> = ({
   };
   
   const handleIncrease = () => {
-    if (item.quantity < (item.maxQuantity || 10)) {
+    // Get the actual maxQuantity from either item or its product property
+    const maxStock = item.maxQuantity || 
+                    (item.product && (item.product as any).stock_quantity) || 
+                    (item.product && (item.product as any).max_order_quantity) || 10;
+                    
+    if (item.quantity < maxStock) {
       // Visual feedback before update
       const newQuantity = item.quantity + 1;
       
@@ -55,7 +60,7 @@ const CartItem: React.FC<CartItemProps> = ({
       
       console.log(`Quantity increased to ${newQuantity}`);
     } else {
-      Alert.alert('Stock Limit', `Only ${item.maxQuantity || 'a limited number of'} items available in stock`);
+      Alert.alert('Stock Limit', `Only ${maxStock} items available in stock`);
     }
   };
 
@@ -105,20 +110,27 @@ const CartItem: React.FC<CartItemProps> = ({
     onRemove();
   };
 
-  const currentPrice = item.discountedPrice || item.price;
+  // Get price from either direct item properties or from the product object
+  const itemPrice = item.price || (item.product && (item.product.price || (item.product as any).price)) || 0;
+  const itemDiscountedPrice = item.discountedPrice || (item.product && ((item.product as any).discounted_price || (itemPrice * (1 - ((item.product as any).discount_percentage || 0) / 100))));
+  
+  const currentPrice = itemDiscountedPrice < itemPrice ? itemDiscountedPrice : itemPrice;
   const totalPrice = currentPrice * item.quantity;
-  const hasDiscount = item.discountedPrice && item.discountedPrice < item.price;
+  const hasDiscount = itemDiscountedPrice && itemDiscountedPrice < itemPrice;
 
-  // Check product availability from either direct property or product data
+  // Enhanced check for product availability
   const isProductAvailable = (
     // Check explicit isAvailable flag if set
     item.isAvailable !== false && 
     // If product data exists, check stock quantity and active status
     (!item.product || (
-      // Product with stock_quantity > 0 is available
-      ((item.product as any).stock_quantity > 0 || (item.product as any).stock_quantity === undefined) && 
+      // Product is available if it has stock or stock isn't tracked
+      ((item.product as any).stock_quantity > 0 || 
+       (item.product as any).stock_quantity === undefined ||
+       (item.product as any).is_in_stock === true) && 
       // Product must not be explicitly inactive
-      (item.product as any).is_active !== false
+      (item.product as any).is_active !== false &&
+      (item.product as any).is_active !== 0
     ))
   );
 
@@ -128,7 +140,14 @@ const CartItem: React.FC<CartItemProps> = ({
       !isProductAvailable && styles.unavailableContainer,
       isDeleting && styles.deletingContainer
     ]}>
-      <Image source={{uri: item.image}} style={styles.image} />
+      <Image 
+        source={{
+          uri: item.image || 
+               (item.product && Array.isArray((item.product as any).images) && (item.product as any).images[0]) || 
+               'https://via.placeholder.com/100?text=No+Image'
+        }} 
+        style={styles.image} 
+      />
       
       {/* Show stock quantity if available */}
       {(item.product && (item.product as any).stock_quantity > 0) && (
@@ -139,10 +158,12 @@ const CartItem: React.FC<CartItemProps> = ({
       
       <View style={styles.details}>
         <Text style={styles.name} numberOfLines={2}>
-          {item.name}
+          {item.name || 
+           (item.product && ((item.product as any).name || (item.product as any).name_en)) || 
+           'Product'}
         </Text>
         
-        <Text style={styles.unit}>{item.unit}</Text>
+        <Text style={styles.unit}>{item.unit || (item.product && (item.product as any).unit) || 'each'}</Text>
         
         <View style={styles.priceContainer}>
           <Text style={styles.price}>

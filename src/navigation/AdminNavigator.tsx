@@ -3,17 +3,17 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../lib/supabase/store/rootReducer';
+import { AdminLogoutModal } from '../../src/components/admin/AdminLogoutModal';
 import {
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../lib/store';
-import { AdminLogoutModal } from '../../src/components/admin/AdminLogoutModal';
+} from '../components/ui/WebCompatibleComponents';
 
 // Types
 export type AdminStackParamList = {
@@ -166,7 +166,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({navigation}
           <Icon name="admin-panel-settings" size={40} color="#4CAF50" />
         </View>
         <Text style={drawerStyles.userName}>
-          {user?.firstName} {user?.lastName}
+          {user?.full_name || 'Administrator'}
         </Text>
         <Text style={drawerStyles.userRole}>Administrator</Text>
       </View>
@@ -204,7 +204,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({navigation}
 };
 
 // Admin Tab Navigator
-const AdminTabNavigator: React.FC = () => {
+export const AdminTabNavigator: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={({route}) => ({
@@ -239,23 +239,37 @@ const AdminTabNavigator: React.FC = () => {
         },
         tabBarActiveTintColor: '#16A34A',
         tabBarInactiveTintColor: '#7C8798',
-        headerShown: false,
+        headerShown: true, // Disable tab headers to avoid double headers
+        headerStyle: {
+          backgroundColor: '#16A34A',
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        headerTitleStyle: {
+          color: '#FFFFFF',
+          fontSize: 18,
+          fontWeight: '600',
+        },
         tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
+          marginBottom: 5,
         },
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopWidth: 0,
-          height: 68,
-          elevation: 6,
+          borderTopWidth: 1,
+          borderTopColor: '#E0E0E0',
+          height: 60,
+          paddingVertical: 5,
+          elevation: 8,
           shadowColor: '#000',
-          shadowOpacity: 0.06,
+          shadowOpacity: 0.1,
           shadowOffset: {width: 0, height: -3},
           shadowRadius: 6,
         },
       })}
+      initialRouteName="Dashboard"
     >
       <Tab.Screen
         name="Dashboard"
@@ -292,7 +306,7 @@ const AdminTabNavigator: React.FC = () => {
 };
 
 // Admin Drawer Navigator
-const AdminDrawerNavigator: React.FC = () => {
+export const AdminDrawerNavigator: React.FC = () => {
   return (
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -319,16 +333,7 @@ const AdminNavigator: React.FC = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true,
-        headerStyle: {
-          backgroundColor: '#4CAF50',
-        },
-        headerTitleStyle: {
-          fontSize: 18,
-          fontWeight: '600',
-          color: '#fff',
-        },
-        headerTintColor: '#fff',
+        headerShown: true, // Hide stack headers to avoid double headers
       }}
     >
       {/* Main Admin Flow with Drawer */}
@@ -345,6 +350,16 @@ const AdminNavigator: React.FC = () => {
         name="AddProduct"
         component={AddProductScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Add New Product',
           presentation: 'modal',
         }}
@@ -354,6 +369,16 @@ const AdminNavigator: React.FC = () => {
         name="EditProduct"
         component={EditProductScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Edit Product',
         }}
       />
@@ -362,6 +387,16 @@ const AdminNavigator: React.FC = () => {
         name="ProductDetails"
         component={ProductDetailsScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Product Details',
         }}
       />
@@ -496,6 +531,16 @@ const AdminNavigator: React.FC = () => {
         name="AdminProfile"
         component={AdminProfileScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Admin Profile',
         }}
       />
@@ -504,6 +549,16 @@ const AdminNavigator: React.FC = () => {
         name="AdminSettings"
         component={AdminSettingsScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Admin Settings',
         }}
       />
@@ -512,6 +567,16 @@ const AdminNavigator: React.FC = () => {
         name="AdminSecurity"
         component={AdminSecurityScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Security Dashboard',
         }}
       />
@@ -520,6 +585,16 @@ const AdminNavigator: React.FC = () => {
         name="AdminTwoFactor"
         component={AdminTwoFactorScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Two-Factor Authentication',
         }}
       />
@@ -528,6 +603,16 @@ const AdminNavigator: React.FC = () => {
         name="AdminUserManagement"
         component={AdminUserManagementScreen}
         options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
           title: 'Admin User Management',
         }}
       />

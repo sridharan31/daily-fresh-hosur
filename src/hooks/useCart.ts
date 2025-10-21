@@ -1,339 +1,252 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import cartService from '../../lib/services/api/cartService';
-import cartSupabaseService from '../../lib/services/cartSupabaseService';
-import FirebaseService from '../../lib/services/FirebaseService';
-import { AppDispatch, RootState } from '../../lib/store';
+import { AppDispatch } from '../../lib/supabase/store';
 import {
-  addLocalItem,
   addToCart,
-  applyCouponCode,
   clearCart,
-  removeCoupon,
+  fetchCart,
   removeFromCart,
-  removeLocalItem,
-  setDeliveryCharge,
-  syncCartWithServer,
-  updateQuantity,
-} from '../../lib/store/slices/cartSlice';
-import { CartItem } from '../../lib/types/cart';
+  updateCartItemQuantity
+} from '../../lib/supabase/store/actions/cartActions';
+import { RootState } from '../../lib/supabase/store/rootReducer';
 import { Product } from '../../lib/types/product';
 import Config from '../config/environment';
 
 export const useCart = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const {isAuthenticated, user} = useSelector((state: RootState) => state.auth);
+  const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   
-  // Get cart state directly from RootState
-  const cartState = useSelector((state: RootState) => state.cart);
-
-  const {
-    items = [],
-    totalAmount = 0,
-    discount = 0,
-    coupon = null,
-    isLoading = false,
-    error = null,
-  } = cartState || {};
-
-  // Ensure items is always an array and calculate derived values safely
-  const safeItems = Array.isArray(items) ? items : [];
-  const subtotal = safeItems.reduce((total: number, item: CartItem) => total + (item.totalPrice || 0), 0);
-  const itemCount = safeItems.reduce((count: number, item: CartItem) => count + (item.quantity || 0), 0);
+  // Get cart state from Supabase store
+  const { items = [], isLoading, error } = useSelector((state: RootState) => state.cart);
+  
+  // Make sure items is always an array
+  const safeItems = items || [];
+  
+  // Calculate cart totals
+  const subtotal = safeItems.reduce((total, item) => {
+    // Use product price if available, multiply by quantity
+    if (item.product && typeof item.product.price === 'number') {
+      return total + (item.product.price * item.quantity);
+    }
+    return total;
+  }, 0);
+  
+  const itemCount = safeItems.reduce((count, item) => count + item.quantity, 0);
   const deliveryCharge = subtotal > Config.FREE_DELIVERY_THRESHOLD || 50 ? 0 : Config.STANDARD_DELIVERY_CHARGE || 5;
   const vatAmount = subtotal * 0.05; // 5% VAT
-  const total = subtotal + deliveryCharge + vatAmount - discount;
-  const appliedCoupon = coupon;
-
-  // Auto-sync cart when user logs in
-  useEffect(() => {
-    if (isAuthenticated) {
-      syncCart();
-    }
-  }, [isAuthenticated]);
-
-  // Auto-calculate delivery charges when cart changes
-  useEffect(() => {
-    calculateDeliveryCharges();
-  }, [items, subtotal]);
-
+  const total = subtotal + deliveryCharge + vatAmount;
+  
+  // Add a product to the cart
   const addItem = useCallback(async (product: Product, quantity: number = 1) => {
+    if (!product) return;
+    
     try {
-      // Add to local state immediately for better UX
-      dispatch(addLocalItem({product, quantity}));
+      if (isAuthenticated && user) {
+        // Add to server cart if user is authenticated
+        await dispatch(addToCart({
+          userId: user.id,
+          productId: product.id,
+          quantity
+        }));
+      } else {
+        // For non-authenticated users, directly modify the local cart state
+        // This is a temporary workaround until we implement local cart storage
+        // Find if product already exists in cart
+        const existingItemIndex = safeItems.findIndex(
+          item => item.product?.id === product.id
+        );
 
-      // Track in analytics
-      if (Config.ENABLE_ANALYTICS) {
-        await FirebaseService.logEvent('add_to_cart', {
-          item_id: product.id,
-          item_name: product.name,
-          item_category: product.category,
-          quantity,
-          value: product.price,
-          currency: Config.DEFAULT_CURRENCY || 'USD',
-        });
-      }
-
-      // Sync with server if authenticated
-      if (isAuthenticated) {
-        await dispatch(addToCart({productId: product.id, quantity}));
-      }
-    } catch (error) {
-      console.error('Error adding item to cart:', error);
-    }
-  }, [dispatch, isAuthenticated]);
-
-  const removeItem = useCallback(async (itemId: string) => {
-    try {
-      // Remove from local state
-      dispatch(removeLocalItem(itemId));
-
-      // Track removal in analytics
-      if (Config.ENABLE_ANALYTICS) {
-        const removedItem = items.find((item: CartItem) => item.id === itemId);
-        if (removedItem) {
-          await FirebaseService.logEvent('remove_from_cart', {
-            item_id: removedItem.product.id,
-            item_name: removedItem.name,
-            item_category: removedItem.product.category,
-            quantity_removed: removedItem.quantity,
-            value: removedItem.totalPrice,
-            currency: 'INR',
+        if (existingItemIndex !== -1) {
+          // Update existing item quantity
+          const updatedItems = [...safeItems];
+          updatedItems[existingItemIndex] = {
+            ...updatedItems[existingItemIndex],
+            quantity: updatedItems[existingItemIndex].quantity + quantity
+          };
+          
+          // Dispatch a "fake" cart update action to update the state
+          dispatch({ 
+            type: 'cart/addToCart/fulfilled', 
+            payload: updatedItems 
+          });
+        } else {
+          // Add new item to cart
+          const newItem = {
+            id: `local-${Date.now()}`,
+            product_id: product.id,
+            user_id: 'guest',
+            quantity: quantity,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            product: product
+          };
+          
+          // Dispatch a "fake" cart update action to update the state
+          dispatch({ 
+            type: 'cart/addToCart/fulfilled', 
+            payload: [...safeItems, newItem] 
           });
         }
       }
-
-      // Sync with server if authenticated
-      if (isAuthenticated) {
-        try {
-          // Get the user ID from Redux store directly
-          const { auth } = useSelector((state: RootState) => state);
-          const userId = auth?.user?.id;
-
-          if (userId) {
-            // Try Supabase service first
-            try {
-              const result = await cartSupabaseService.removeFromCart(userId, itemId);
-              if (!result.success) {
-                // Fall back to API service
-                await dispatch(removeFromCart(itemId));
-              }
-            } catch (error) {
-              console.error('Error with Supabase cart removal, falling back to API:', error);
-              await dispatch(removeFromCart(itemId));
-            }
-          } else {
-            // If user ID not available, use the old method
-            await dispatch(removeFromCart(itemId));
-          }
-        } catch (error) {
-          console.error('Error removing item from cart:', error);
-          await dispatch(removeFromCart(itemId));
-        }
-      }
     } catch (error) {
-      console.error('Error removing item from cart:', error);
+      console.error('Failed to add item to cart:', error);
     }
-  }, [dispatch, isAuthenticated, items, useSelector]);
-
-  const removeMultipleItems = useCallback(async (itemIds: string[]) => {
+  }, [dispatch, isAuthenticated, user, safeItems]);
+  
+  // Remove an item from the cart
+  const removeItem = useCallback(async (cartItemId: string) => {
+    if (!cartItemId) return;
+    
     try {
-      // Remove all items locally
-      itemIds.forEach(itemId => {
-        dispatch(removeLocalItem(itemId));
-      });
-
-      // Track bulk removal
-      if (Config.ENABLE_ANALYTICS) {
-        await FirebaseService.logEvent('bulk_remove_from_cart', {
-          items_count: itemIds.length,
-          cart_value_before: subtotal,
+      if (isAuthenticated && user) {
+        await dispatch(removeFromCart({
+          userId: user.id,
+          cartItemId
+        }));
+      } else {
+        // For non-authenticated users, directly modify the local cart state
+        const updatedItems = safeItems.filter(item => item.id !== cartItemId);
+        
+        // Dispatch a "fake" cart update action
+        dispatch({ 
+          type: 'cart/removeFromCart/fulfilled', 
+          payload: updatedItems 
         });
       }
-
-      // Sync with server if authenticated
-      if (isAuthenticated) {
-        await Promise.all(itemIds.map(itemId => dispatch(removeFromCart(itemId))));
-      }
     } catch (error) {
-      console.error('Error removing multiple items from cart:', error);
+      console.error('Failed to remove item from cart:', error);
     }
-  }, [dispatch, isAuthenticated, subtotal]);
-
-  const updateItemQuantity = useCallback(async (itemId: string, quantity: number) => {
+  }, [dispatch, isAuthenticated, user, safeItems]);
+  
+  // Update item quantity in the cart
+  const updateItemQuantity = useCallback(async (cartItemId: string, quantity: number) => {
+    if (!cartItemId || quantity < 1) return;
+    
     try {
-      // Update local state
-      dispatch(updateQuantity({itemId, quantity}));
-
-      // Sync with server if authenticated
-      if (isAuthenticated) {
-        await dispatch(updateQuantity({itemId, quantity}));
+      if (isAuthenticated && user) {
+        await dispatch(updateCartItemQuantity({
+          userId: user.id,
+          cartItemId,
+          quantity
+        }));
+      } else {
+        // For non-authenticated users, directly modify the local cart state
+        const updatedItems = safeItems.map(item => {
+          if (item.id === cartItemId) {
+            return { ...item, quantity };
+          }
+          return item;
+        });
+        
+        // Dispatch a "fake" cart update action
+        dispatch({ 
+          type: 'cart/updateCartItemQuantity/fulfilled', 
+          payload: updatedItems 
+        });
       }
     } catch (error) {
-      console.error('Error updating item quantity:', error);
+      console.error('Failed to update cart item:', error);
     }
-  }, [dispatch, isAuthenticated]);
-
+  }, [dispatch, isAuthenticated, user, safeItems]);
+  
+  // Clear the entire cart
   const clearAllItems = useCallback(async () => {
     try {
-      console.log('Clearing all cart items');
-      
-      // Clear local state immediately
-      dispatch(clearCart());
-
-      // Clear server cart if authenticated
-      if (isAuthenticated) {
-        const userId = user?.id;
-
-        if (userId) {
-          console.log('User authenticated, clearing cart on server for user:', userId);
-          try {
-            // Try Supabase service first
-            const result = await cartSupabaseService.clearCart(userId);
-            if (!result.success) {
-              // Fall back to API service
-              console.log('Supabase clear failed, using API fallback');
-              await cartService.clearCart();
-            }
-          } catch (error) {
-            // Fall back to API service
-            console.error('Error with Supabase clear cart, falling back to API:', error);
-            await cartService.clearCart();
-          }
-        } else {
-          // If user ID not available, use the old method
-          console.log('No user ID found, using API fallback');
-          await cartService.clearCart();
-        }
+      if (isAuthenticated && user) {
+        await dispatch(clearCart(user.id));
       } else {
-        console.log('User not authenticated, only clearing local cart state');
+        // For non-authenticated users, clear the local cart state
+        dispatch({ 
+          type: 'cart/clearCart/fulfilled', 
+          payload: [] 
+        });
       }
-      
-      return true; // Return success
     } catch (error) {
-      console.error('Error clearing cart:', error);
-      return false; // Return failure
+      console.error('Failed to clear cart:', error);
+    }
+  }, [dispatch, isAuthenticated, user]);
+  
+  // Refresh cart from server
+  const refreshCart = useCallback(async () => {
+    if (isAuthenticated && user) {
+      try {
+        await dispatch(fetchCart(user.id));
+      } catch (error) {
+        console.error('Failed to refresh cart:', error);
+      }
+    }
+  }, [dispatch, isAuthenticated, user]);
+  
+  // Utility functions for component compatibility
+  const getItemQuantity = useCallback((productId: string) => {
+    const item = safeItems.find(item => item.product?.id === productId);
+    return item ? item.quantity : 0;
+  }, [safeItems]);
+
+  const isItemInCart = useCallback((productId: string) => {
+    return safeItems.some(item => item.product?.id === productId);
+  }, [safeItems]);
+  
+  // For backward compatibility - syncCart was used in some components
+  const syncCart = useCallback(async () => {
+    // This function just refreshes the cart from the server
+    if (isAuthenticated && user) {
+      try {
+        await dispatch(fetchCart(user.id));
+      } catch (error) {
+        console.error('Failed to sync cart:', error);
+      }
     }
   }, [dispatch, isAuthenticated, user]);
 
+  // Additional backward compatibility functions
+  // These were in the old cart hook but are not used in the new Supabase implementation
   const applyCoupon = useCallback(async (code: string) => {
-    try {
-      const result = await dispatch(applyCouponCode(code));
-      
-      // Track coupon usage in analytics
-      if (Config.ENABLE_ANALYTICS && result.type.endsWith('fulfilled')) {
-        await FirebaseService.logEvent('coupon_applied', {
-          coupon_code: code,
-          cart_value: subtotal,
-          discount_amount: (result.payload as any).value,
-        });
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('Error applying coupon:', error);
-      throw error;
-    }
-  }, [dispatch, subtotal]);
+    console.warn('applyCoupon is not implemented in the new Supabase cart hook');
+    return null;
+  }, []);
 
   const removeCouponCode = useCallback(async () => {
-    try {
-      dispatch(removeCoupon());
-      
-      if (isAuthenticated) {
-        await cartService.removeCoupon();
-      }
-    } catch (error) {
-      console.error('Error removing coupon:', error);
-    }
-  }, [dispatch, isAuthenticated]);
+    console.warn('removeCouponCode is not implemented in the new Supabase cart hook');
+  }, []);
 
-  const syncCart = useCallback(async () => {
-    if (isAuthenticated) {
-      try {
-        await dispatch(syncCartWithServer());
-      } catch (error) {
-        console.error('Error syncing cart:', error);
-      }
-    }
-  }, [dispatch, isAuthenticated]);
-
-  const calculateDeliveryCharges = useCallback(async () => {
-    try {
-      // Simple delivery charge calculation
-      let charge = 0;
-      
-      if (subtotal > 0) {
-        if (subtotal < (Config.FREE_DELIVERY_THRESHOLD || 50)) {
-          charge = Config.STANDARD_DELIVERY_CHARGE || 5;
-        }
-      }
-      
-      dispatch(setDeliveryCharge(charge));
-    } catch (error) {
-      console.error('Error calculating delivery charges:', error);
-    }
-  }, [dispatch, subtotal]);
-
-  const checkItemsAvailability = useCallback(async () => {
-    try {
-      if (items.length === 0) return;
-      
-      const productIds = items.map((item: CartItem) => item.product.id);
-      const response = await cartService.checkItemsAvailability(productIds);
-      
-      // Update item availability in store
-      response.data?.forEach(({productId, isAvailable}: any) => {
-        console.log(`Product ${productId} availability: ${isAvailable}`);
-      });
-    } catch (error) {
-      console.error('Error checking items availability:', error);
-    }
-  }, [items]);
-
-  const getItemQuantity = useCallback((productId: string) => {
-    const item = items.find((item: CartItem) => item.product.id === productId);
-    return item ? item.quantity : 0;
-  }, [items]);
-
-  const isItemInCart = useCallback((productId: string) => {
-    return items.some((item: CartItem) => item.product.id === productId);
-  }, [items]);
+  // Dummy values for backward compatibility
+  const appliedCoupon = null;
+  const discount = 0;
 
   return {
     // State
-    items,
-    appliedCoupon,
+    items: safeItems,
+    rawItems: safeItems, // Add rawItems alias for backward compatibility
     subtotal,
+    itemCount,
+    isLoading,
+    error,
     deliveryCharge,
-    discount,
     vatAmount,
     total,
-    itemCount,
-    loading: isLoading,
-    error,
+    discount, // Added for backward compatibility
+    appliedCoupon, // Added for backward compatibility
+    loading: isLoading, // Alias for backward compatibility
     
     // Actions
     addItem,
     removeItem,
-    removeMultipleItems,
     updateItemQuantity,
     clearAllItems,
-    applyCoupon,
-    removeCouponCode,
-    syncCart,
-    checkItemsAvailability,
+    refreshCart,
+    syncCart, // Added for backward compatibility
+    applyCoupon, // Added for backward compatibility
+    removeCouponCode, // Added for backward compatibility
     
     // Utils
     getItemQuantity,
     isItemInCart,
+    
+    // For compatibility with the old cart hook
+    emptyCart: clearAllItems,
+    updateItem: updateItemQuantity
   };
 };
 
-// Export the enhanced version as well for backwards compatibility
-export const useCartEnhanced = useCart;
-
-// Default export to satisfy Expo Router (even though this is not a route)
-export default function CartRouteNotFound() {
-  return null;
-}
+export default useCart;

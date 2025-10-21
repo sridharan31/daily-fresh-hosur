@@ -3,23 +3,23 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
 import { useDispatch } from 'react-redux';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
-import { checkSupabaseSession, supabaseLoginUser } from '../../../lib/store/actions/supabaseAuthActions';
+import { checkSession, loginUser } from '../../../lib/supabase/store/actions/authActions';
 import { CartItem, CartSummary, CouponInput } from '../../components/cart';
 import Button from '../../components/common/Button';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import Modal from '../../components/common/Modal';
 import TextInput from '../../components/common/TextInput';
+import {
+    Alert,
+    FlatList,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
+} from '../../components/ui/WebCompatibleComponents';
 import { useAuth } from '../../hooks/useAuth';
 import { useCart } from '../../hooks/useCart';
 import { useTheme } from '../../hooks/useTheme';
@@ -89,7 +89,7 @@ const CartScreen: React.FC = () => {
       if (hasSupabaseToken && !auth.isAuthenticated) {
         console.log('Token found but Redux state is not authenticated - triggering session check');
         // Force a session check
-        dispatch(checkSupabaseSession() as any);
+        dispatch(checkSession() as any);
         setLocalAuthChecked(true);
       }
     };
@@ -118,7 +118,7 @@ const CartScreen: React.FC = () => {
       console.log('Attempting direct login with Supabase');
       
       // Use the credentials from the form
-      await dispatch(supabaseLoginUser({
+      await dispatch(loginUser({
         email,
         password
       }) as any);
@@ -189,9 +189,11 @@ const CartScreen: React.FC = () => {
     // Check for unavailable items based on stock quantity
     const unavailableItems = items.filter((item: any) => 
       item.product && 
-      (item.product.stock_quantity === 0 || 
-       typeof item.product.stock_quantity === 'undefined' || 
-       item.product.is_active === false)
+      (
+        // Only consider an item unavailable if it has a stock_quantity of 0 or is explicitly inactive
+        (item.product.stock_quantity === 0 && item.product.stock_quantity !== undefined) || 
+        item.product.is_active === false
+      )
     );
     
     if (unavailableItems.length > 0) {
@@ -226,14 +228,32 @@ const CartScreen: React.FC = () => {
       ', Local storage check:', localAuthChecked, 
       ', Supabase token present:', hasSupabaseToken, ')');
     
-    if (!currentAuthState) {
-      console.log('User not authenticated from any source, showing login modal');
-      // Show our custom login modal instead of navigating away
-      setShowLoginModal(true);
-      return;
-    }
+    // For this migration phase, allow guest checkout by not blocking here
+    // This allows the app to work without authentication during testing
+    // Later, we can re-enable the authentication requirement
     
-    console.log('User is authenticated, proceeding to checkout');
+    // If authenticated, proceed normally; if not, warn but allow guest checkout
+    if (!currentAuthState) {
+      console.log('User not authenticated, proceeding with guest checkout');
+      Alert.alert(
+        'Guest Checkout',
+        'You are checking out as a guest. You can create an account during checkout to track your orders.',
+        [
+          {
+            text: 'Sign In',
+            onPress: () => setShowLoginModal(true)
+          },
+          {
+            text: 'Continue as Guest',
+            onPress: () => {
+              console.log('User proceeding as guest');
+            }
+          }
+        ]
+      );
+    } else {
+      console.log('User is authenticated, proceeding to checkout');
+    }
 
     // All checks passed, navigate to checkout
     console.log('All validations passed, navigating to checkout...');

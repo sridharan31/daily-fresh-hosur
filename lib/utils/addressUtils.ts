@@ -5,11 +5,33 @@ import { Database } from '../supabase';
 export type UserAddress = Database['public']['Tables']['user_addresses']['Row'];
 
 /**
+ * Get address type from title
+ */
+export const getAddressType = (title: string): 'home' | 'work' | 'other' => {
+  const lowerTitle = title.toLowerCase();
+  if (lowerTitle.includes('home')) return 'home';
+  if (lowerTitle.includes('work') || lowerTitle.includes('office')) return 'work';
+  return 'other';
+};
+
+/**
+ * Get address title from type
+ */
+export const getAddressTitle = (type: string): string => {
+  switch (type) {
+    case 'home': return 'Home';
+    case 'work': return 'Work';
+    case 'other': return 'Other';
+    default: return 'Home';
+  }
+};
+
+/**
  * Convert from frontend Address format to Supabase user_addresses format
  */
 export const toSupabaseAddress = (address: Address): Omit<Database['public']['Tables']['user_addresses']['Insert'], 'user_id'> => {
   return {
-    title: getAddressTitle(address.type),
+    title: address.name || getAddressTitle(address.type),
     address_line_1: address.street,
     address_line_2: address.landmark || null,
     city: address.city,
@@ -37,25 +59,3 @@ export const fromSupabaseAddress = (address: UserAddress, userName: string = '')
     isDefault: address.is_default
   };
 };
-
-/**
- * Get address title from type
- */
-function getAddressTitle(type: 'home' | 'work' | 'other'): string {
-  switch (type) {
-    case 'home': return 'Home';
-    case 'work': return 'Work';
-    case 'other': return 'Other';
-    default: return 'Home';
-  }
-}
-
-/**
- * Get address type from title
- */
-function getAddressType(title: string): 'home' | 'work' | 'other' {
-  const lowerTitle = title.toLowerCase();
-  if (lowerTitle.includes('home')) return 'home';
-  if (lowerTitle.includes('work') || lowerTitle.includes('office')) return 'work';
-  return 'other';
-}

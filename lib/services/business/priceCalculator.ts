@@ -25,7 +25,7 @@ interface DiscountRule {
 }
 
 class PriceCalculatorService {
-  private readonly currency = 'INR';
+  private readonly currency: string = 'INR';
   private readonly gstRate = Config.VAT_RATE;
   private readonly freeDeliveryThreshold = Config.FREE_DELIVERY_THRESHOLD;
   private readonly standardDeliveryCharge = Config.STANDARD_DELIVERY_CHARGE;
@@ -34,7 +34,12 @@ class PriceCalculatorService {
   /**
    * Format price according to currency and locale
    */
-  formatPrice(amount: number, showCurrency = true): string {
+  formatPrice(amount: number | undefined, showCurrency = true): string {
+    // Handle undefined, null or NaN values
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return showCurrency ? '₹0.00' : '0.00';
+    }
+    
     const formattedAmount = amount.toFixed(2);
     
     if (showCurrency) {

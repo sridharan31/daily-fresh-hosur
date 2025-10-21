@@ -1,10 +1,14 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AuthService } from '../lib/services/authService';
-import { AppDispatch, RootState } from '../lib/store';
-import { clearCart, fetchCart } from '../lib/store/slices/cartSlice';
-import { fromSupabaseAddress, toSupabaseAddress } from '../lib/utils/addressUtils';
+import { supabase } from '../lib/supabase';
+import { orderService } from '../lib/supabase/services/order';
+import { userService } from '../lib/supabase/services/user';
+import { AppDispatch } from '../lib/supabase/store';
+import { loginUser } from '../lib/supabase/store/actions/authActions';
+import { clearCart, fetchCart } from '../lib/supabase/store/actions/cartActions';
+import { RootState } from '../lib/supabase/store/rootReducer';
+import { fromSupabaseAddress } from '../lib/utils/addressUtils';
 import { useCart } from '../src/hooks/useCart';
 import AddressFormModal, { Address } from './components/AddressFormModal';
 
@@ -42,26 +46,269 @@ interface DeliveryAddress {
 // 4. Adding/removing items triggers both Redux update and Supabase sync
 // 5. RLS policies ensure users can only access their own cart items
 
+// Guest Checkout Form Component
+interface GuestCheckoutFormProps {
+  onSubmit: (guestData: GuestCheckoutData) => void;
+  isLoading: boolean;
+}
+
+interface GuestCheckoutData {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
+  const [formData, setFormData] = useState<GuestCheckoutData>({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: ''
+  });
+
+  const handleChange = (field: keyof GuestCheckoutData, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div style={{ width: '100%', marginBottom: 20 }}>
+      <h3 style={{ fontSize: 18, marginBottom: 15 }}>Guest Checkout</h3>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Name *</label>
+          <input 
+            type="text" 
+            value={formData.name} 
+            onChange={(e) => handleChange('name', e.target.value)}
+            required
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: 4
+            }}
+          />
+        </div>
+        
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Email *</label>
+          <input 
+            type="email" 
+            value={formData.email} 
+            onChange={(e) => handleChange('email', e.target.value)}
+            required
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: 4
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Phone *</label>
+          <input 
+            type="tel" 
+            value={formData.phone} 
+            onChange={(e) => handleChange('phone', e.target.value)}
+            required
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: 4
+            }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <label style={{ display: 'block', marginBottom: 5 }}>Address *</label>
+          <textarea 
+            value={formData.address} 
+            onChange={(e) => handleChange('address', e.target.value)}
+            required
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #ccc',
+              borderRadius: 4
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', marginBottom: 5 }}>City *</label>
+            <input 
+              type="text" 
+              value={formData.city} 
+              onChange={(e) => handleChange('city', e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ccc',
+                borderRadius: 4
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', marginBottom: 5 }}>State *</label>
+            <input 
+              type="text" 
+              value={formData.state} 
+              onChange={(e) => handleChange('state', e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ccc',
+                borderRadius: 4
+              }}
+            />
+          </div>
+          <div style={{ flex: 0.7 }}>
+            <label style={{ display: 'block', marginBottom: 5 }}>Pincode *</label>
+            <input 
+              type="text" 
+              value={formData.pincode} 
+              onChange={(e) => handleChange('pincode', e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #ccc',
+                borderRadius: 4
+              }}
+            />
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          disabled={isLoading}
+          style={{
+            padding: '10px 15px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            opacity: isLoading ? 0.7 : 1
+          }}
+        >
+          {isLoading ? 'Processing...' : 'Continue to Payment'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function CheckoutScreen() {
-  const { user } = useSelector((state: RootState) => state.auth);
-  const cartState = useSelector((state: RootState) => state.cart);
-  const { items, subtotal, deliveryCharge, discount, vatAmount, total, itemCount } = useCart();
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
+  console.log('Auth state:', { isAuthenticated, user });
   
-  // Initialize auth service for address operations
-  const authService = new AuthService();
+  // Check Supabase session directly to ensure we're authenticated
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Direct Supabase session check:", session);
+      
+      if (session?.user && (!isAuthenticated || !user)) {
+        console.log("Session exists but Redux store doesn't have user. Restoring...");
+        // Restore user in Redux store
+        dispatch(loginUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          full_name: session.user.user_metadata?.full_name || '',
+          phone: session.user.phone || session.user.user_metadata?.phone || ''
+        }));
+      }
+    };
+    
+    checkSession();
+  }, [dispatch, isAuthenticated, user]);
+  
+  const cartState = useSelector((state: RootState) => state.cart);
+  const { items: rawItems, subtotal, deliveryCharge, discount, vatAmount, total, itemCount } = useCart();
+  
+  // Process cart items to ensure they have all required properties
+  const items = React.useMemo(() => {
+    return (rawItems || []).map(item => {
+      // Extract product information from the item.product object if available
+      const product = item.product || {};
+      
+      // Calculate item price with fallbacks
+      const itemPrice = item.price || product.price || 0;
+      
+      // Get discounted price if available
+      const discountedPrice = item.discountedPrice || 
+        (product.discounted_price || 
+         (product.discount_percentage ? 
+          itemPrice * (1 - product.discount_percentage / 100) : 
+          undefined));
+      
+      // Calculate total price per item
+      const totalPrice = (discountedPrice || itemPrice) * item.quantity;
+      
+      // Get image URL with fallback
+      const imageUrl = item.image || 
+        (Array.isArray(product.images) && product.images.length > 0 ? 
+          product.images[0] : undefined);
+      
+      // Return enhanced item
+      return {
+        ...item,
+        name: item.name || product.name_en || product.name || 'Product',
+        price: itemPrice,
+        discountedPrice: discountedPrice < itemPrice ? discountedPrice : undefined,
+        totalPrice,
+        image: imageUrl,
+        unit: item.unit || product.unit || 'each'
+      };
+    });
+  }, [rawItems]);
   
   // Cart state from Redux store is synchronized with Supabase cart_items table
   
   // Fetch cart items from Supabase when component mounts
   useEffect(() => {
-    dispatch(fetchCart());
-  }, [dispatch]);
+    if (isAuthenticated && user) {
+      dispatch(fetchCart(user.id));
+    }
+  }, [dispatch, isAuthenticated, user]);
+  
+  // State for handling guest checkout
+  const [isGuestCheckout, setIsGuestCheckout] = useState(!isAuthenticated);
+  const [guestData, setGuestData] = useState<GuestCheckoutData | null>(null);
+  const [showGuestLoginOption, setShowGuestLoginOption] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
   
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
   const [isAddressLoading, setIsAddressLoading] = useState(true);
 
   const handleBack = () => {
@@ -71,51 +318,74 @@ export default function CheckoutScreen() {
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>([]);
   
-  // Load addresses from Supabase when component mounts
-  useEffect(() => {
-    async function loadAddresses() {
-      if (!user?.id) return;
-      
-      setIsAddressLoading(true);
-      try {
-        const addresses = await authService.getUserAddresses();
-        
-        // Map the Supabase address format to our DeliveryAddress format
-        const mappedAddresses: DeliveryAddress[] = addresses.map((addr: any) => {
-          const formattedAddress = fromSupabaseAddress(addr, user.full_name);
-          return {
-            id: addr.id,
-            type: formattedAddress.type,
-            name: formattedAddress.name,
-            address: addr.address_line_1 + (addr.address_line_2 ? `, ${addr.address_line_2}` : ''),
-            city: addr.city,
-            state: addr.state,
-            pincode: addr.pincode,
-            phone: user.phone || '',
-            isDefault: addr.is_default
-          };
-        });
-        
-        setSavedAddresses(mappedAddresses);
-        
-        // Set selected address to default or first address if exists
-        const defaultAddress = mappedAddresses.find(addr => addr.isDefault);
-        if (defaultAddress) {
-          setSelectedAddress(defaultAddress.id);
-        } else if (mappedAddresses.length > 0) {
-          setSelectedAddress(mappedAddresses[0].id);
-        }
-      } catch (error) {
-        console.error('Failed to load addresses:', error);
-        // Display error but don't set any addresses
-        setSavedAddresses([]);
-      } finally {
-        setIsAddressLoading(false);
-      }
+  // Create a function to load addresses that can be reused
+  const loadAddresses = async () => {
+    if (!user?.id) {
+      console.log('Cannot load addresses - no user ID available');
+      return;
     }
     
-    loadAddresses();
-  }, [user?.id]);
+    console.log('Loading addresses for user:', {
+      id: user.id,
+      type: typeof user.id,
+      isUuid: user.id.includes('-'),
+      fullUser: user
+    });
+    setIsAddressLoading(true);
+    
+    try {
+      // Ensure we're using a proper UUID format
+      if (!user.id.includes('-')) {
+        console.error('WARNING: User ID is not in UUID format! This will likely cause errors.');
+      }
+      
+      const addresses = await userService.getUserAddresses(user.id);
+      console.log('Addresses fetched from Supabase:', addresses);
+      
+      // Map the Supabase address format to our DeliveryAddress format
+      const mappedAddresses: DeliveryAddress[] = addresses.map((addr) => {
+        const formattedAddress = fromSupabaseAddress(addr, user.full_name);
+        return {
+          id: addr.id,
+          type: formattedAddress.type,
+          name: formattedAddress.name,
+          address: addr.address_line_1 + (addr.address_line_2 ? `, ${addr.address_line_2}` : ''),
+          city: addr.city,
+          state: addr.state,
+          pincode: addr.pincode,
+          phone: user.phone || '',
+          isDefault: addr.is_default
+        };
+      });
+      
+      console.log('Mapped addresses for UI:', mappedAddresses);
+      setSavedAddresses(mappedAddresses);
+      
+      // Set selected address to default or first address if exists
+      const defaultAddress = mappedAddresses.find(addr => addr.isDefault);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress.id);
+      } else if (mappedAddresses.length > 0) {
+        setSelectedAddress(mappedAddresses[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to load addresses:', error);
+      // Display error but don't set any addresses
+      setSavedAddresses([]);
+    } finally {
+      setIsAddressLoading(false);
+    }
+  };
+  
+  // Load addresses from Supabase when component mounts
+  useEffect(() => {
+    console.log('User state changed:', user);
+    if (user?.id) {
+      console.log('User has ID, loading addresses...');
+      loadAddresses();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, user?.id]);
   
   const handleAddAddress = () => {
     // Open the address form modal
@@ -125,46 +395,24 @@ export default function CheckoutScreen() {
   const handleSaveAddress = async (address: Address) => {
     try {
       setIsLoading(true);
+      console.log('Saving address:', address);
       
-      // Convert to Supabase format using our utility
-      const supabaseAddress = toSupabaseAddress(address);
+      // Save to Supabase - our updated userService now handles the conversion internally
+      const savedAddress = await userService.addAddress(address);
       
-      // Save to Supabase
-      const savedAddress = await authService.addAddress(supabaseAddress);
+      console.log('Address saved successfully:', savedAddress);
       
       if (!savedAddress) {
         throw new Error('Failed to save address');
       }
       
-      // Create a new DeliveryAddress from the saved data
-      const newAddress: DeliveryAddress = {
-        id: savedAddress.id,
-        type: address.type,
-        name: address.name,
-        address: address.street,
-        city: address.city,
-        state: address.state,
-        pincode: address.pincode,
-        phone: address.phone,
-        isDefault: savedAddress.is_default
-      };
+      // Reload addresses from Supabase to ensure we have the most up-to-date data
+      console.log('Reloading addresses after save...');
+      await loadAddresses();
       
-      // Update local state
-      let updatedAddresses;
-      
-      if (newAddress.isDefault) {
-        // Update all addresses to not be default if this one is default
-        updatedAddresses = savedAddresses.map(addr => ({
-          ...addr,
-          isDefault: false
-        }));
-        updatedAddresses.push(newAddress);
-      } else {
-        updatedAddresses = [...savedAddresses, newAddress];
-      }
-      
-      setSavedAddresses(updatedAddresses);
-      setSelectedAddress(newAddress.id);
+      // Select the newly added address
+      setSelectedAddress(savedAddress.id);
+      console.log('Selected address set to:', savedAddress.id);
     } catch (error) {
       console.error('Error saving address:', error);
       alert('Failed to save address. Please try again.');
@@ -181,7 +429,7 @@ export default function CheckoutScreen() {
       try {
         setIsLoading(true);
         // Dispatch the clear cart action
-        dispatch(clearCart());
+        dispatch(clearCart(isAuthenticated && user ? user.id : 'guest'));
         alert('Cart cleared successfully');
       } catch (error) {
         console.error('Error clearing cart:', error);
@@ -192,42 +440,151 @@ export default function CheckoutScreen() {
     }
   };
 
+  // Handle guest checkout submission
+  const handleGuestCheckoutSubmit = (data: GuestCheckoutData) => {
+    setGuestData(data);
+    setIsGuestCheckout(false);
+    setShowGuestLoginOption(true);
+  };
+
+  // Handle user login during checkout
+  const handleLogin = async () => {
+    if (!loginEmail || !loginPassword) {
+      alert('Please enter both email and password');
+      return;
+    }
+
+    setLoginLoading(true);
+    try {
+      await dispatch(loginUser({
+        email: loginEmail,
+        password: loginPassword
+      }) as any);
+      
+      setShowGuestLoginOption(false);
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Login failed. Please check your credentials and try again.');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  // Skip login and continue as guest
+  const handleContinueAsGuest = () => {
+    setShowGuestLoginOption(false);
+  };
+
   const handlePlaceOrder = async () => {
+    if (!selectedAddress && isAuthenticated) {
+      alert('Please select a delivery address');
+      return;
+    }
+    
+    if (items.length === 0) {
+      alert('Your cart is empty');
+      return;
+    }
+    
     setIsLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Set up order data for Supabase
+      let orderId;
       
-      // Order data preparation
-      // In a complete implementation, this would:
-      // 1. Create a record in the 'orders' table
-      // 2. Create records in the 'order_items' table for each item
-      // 3. Clear the user's cart_items from Supabase
-      // 4. Record the delivery address from user_addresses
-      const orderData = {
-        items,
-        selectedAddress: savedAddresses.find(addr => addr.id === selectedAddress),
-        paymentMethod,
-        specialInstructions,
-        pricing: {
-          subtotal,
-          deliveryCharge,
-          discount,
-          vatAmount,
-          total
+      if (isAuthenticated && user) {
+        // For authenticated users, create order in Supabase
+        console.log('Creating order for authenticated user:', user.id);
+        
+        // Convert cart items to order items format
+        const orderItems = items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price
+        }));
+        
+        // Get the selected address
+        const addressData = savedAddresses.find(addr => addr.id === selectedAddress);
+        
+        if (!addressData) {
+          throw new Error('Selected address not found');
         }
-      };
-
-      console.log('Order placed:', orderData);
+        
+        // Calculate the total amount
+        const totalAmount = total;
+        
+        // Use Supabase order service to create the order
+        orderId = await orderService.createOrder(
+          user.id,
+          selectedAddress, // shipping address ID
+          paymentMethod as any, // cast to expected type
+          orderItems,
+          totalAmount,
+          undefined, // delivery date - could be added in the future
+          undefined  // time slot - could be added in the future
+        );
+        
+        console.log('Order created with ID:', orderId);
+      } else {
+        // For guest users, we'll use local storage or session storage
+        // In a real implementation, you might want to create a temporary user or store guest orders
+        console.log('Creating guest order');
+        
+        // Generate a pseudo-random ID for guest orders
+        orderId = 'guest-' + Date.now().toString();
+        
+        // Store the order in localStorage
+        const guestOrder = {
+          id: orderId,
+          items,
+          guestAddress: guestData,
+          paymentMethod,
+          specialInstructions,
+          pricing: {
+            subtotal,
+            deliveryCharge,
+            discount,
+            vatAmount,
+            total
+          },
+          status: 'pending',
+          createdAt: new Date().toISOString()
+        };
+        
+        // Store in local storage for persistence
+        localStorage.setItem(`guest_order_${orderId}`, JSON.stringify(guestOrder));
+        console.log('Guest order saved:', guestOrder);
+      }
       
       // Clear the cart after successful order placement
-      dispatch(clearCart());
+      dispatch(clearCart(isAuthenticated && user ? user.id : 'guest'));
+      
+      // Store orderId for confirmation page
+      localStorage.setItem('last_order_id', orderId);
       
       // Navigate to order confirmation
-      router.replace('/order-confirmation');
+      router.replace({
+        pathname: '/order-confirmation',
+        params: { orderId: localStorage.getItem('last_order_id') || '' }
+      });
     } catch (error) {
       console.error('Order placement failed:', error);
-      alert('Failed to place order. Please try again.');
+      
+      // Better error handling with specific messages
+      let errorMessage = 'Failed to place order. Please try again.';
+      
+      if (error instanceof Error) {
+        // Handle specific error cases
+        if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('auth')) {
+          errorMessage = 'Authentication error. Please log in again.';
+        } else if (error.message.includes('not found')) {
+          errorMessage = 'Address information is missing. Please select a valid address.';
+        }
+      }
+      
+      // Show error as modal or alert
+      setOrderError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -240,9 +597,99 @@ export default function CheckoutScreen() {
       {/* Address Form Modal */}
       <AddressFormModal 
         visible={addressModalVisible}
-        onClose={() => setAddressModalVisible(false)}
+        onClose={() => !isLoading && setAddressModalVisible(false)}
         onSave={handleSaveAddress}
+        isSubmitting={isLoading}
       />
+
+      {/* Guest Login Option Modal */}
+      {showGuestLoginOption && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: 8,
+            padding: 20,
+            width: '90%',
+            maxWidth: 400
+          }}>
+            <h3 style={{ fontSize: 18, marginBottom: 15 }}>Create an Account</h3>
+            <p style={{ marginBottom: 15 }}>Would you like to create an account for easier checkout next time?</p>
+            
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', marginBottom: 5 }}>Email</label>
+              <input 
+                type="email" 
+                value={loginEmail || (guestData?.email || '')}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4
+                }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: 15 }}>
+              <label style={{ display: 'block', marginBottom: 5 }}>Password</label>
+              <input 
+                type="password" 
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ccc',
+                  borderRadius: 4
+                }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <button 
+                onClick={handleLogin}
+                disabled={loginLoading}
+                style={{
+                  padding: '10px 15px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: loginLoading ? 'not-allowed' : 'pointer',
+                  opacity: loginLoading ? 0.7 : 1
+                }}
+              >
+                {loginLoading ? 'Signing In...' : 'Sign In'}
+              </button>
+              
+              <button 
+                onClick={handleContinueAsGuest}
+                style={{
+                  padding: '10px 15px',
+                  backgroundColor: '#f1f1f1',
+                  color: '#333',
+                  border: '1px solid #ccc',
+                  borderRadius: 4,
+                  cursor: 'pointer'
+                }}
+              >
+                Continue as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={styles.header}>
@@ -254,6 +701,34 @@ export default function CheckoutScreen() {
 
       {/* Content */}
       <div style={styles.content}>
+        {/* Error message display */}
+        {orderError && (
+          <div style={{
+            padding: '12px 16px',
+            backgroundColor: '#ffebee',
+            borderRadius: '4px',
+            marginBottom: '20px',
+            borderLeft: '4px solid #f44336'
+          }}>
+            <p style={{ color: '#c62828', margin: 0 }}>{orderError}</p>
+            <button 
+              onClick={() => setOrderError(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#757575',
+                cursor: 'pointer',
+                marginTop: '8px',
+                padding: 0,
+                fontSize: '14px',
+                textDecoration: 'underline'
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        
         {/* Order Summary */}
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Order Summary</h2>
@@ -289,15 +764,20 @@ export default function CheckoutScreen() {
                       {item.image ? (
                         <img src={item.image} alt={item.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                       ) : (
-                        <div style={{backgroundColor: '#f0f0f0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>No image</div>
+                        <div style={{backgroundColor: '#f0f0f0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                          {item.name ? item.name.charAt(0).toUpperCase() : 'P'}
+                        </div>
                       )}
                     </div>
                     <div style={styles.cartItemDetails}>
-                      <h4 style={styles.cartItemName}>{item.name}</h4>
-                      <p style={styles.cartItemPrice}>₹{item.price.toFixed(2)} × {item.quantity} {item.unit}</p>
+                      <h4 style={styles.cartItemName}>{item.name || (item.product && (item.product.name_en || item.product.name)) || 'Product'}</h4>
+                      <p style={styles.cartItemPrice}>
+                        ₹{(item.price || 0).toFixed(2)} × {item.quantity} {item.unit || 'each'}
+                        {item.discountedPrice && <span style={{textDecoration: 'line-through', marginLeft: '5px', color: '#999'}}>₹{(item.price).toFixed(2)}</span>}
+                      </p>
                     </div>
                   </div>
-                  <div style={styles.cartItemTotal}>₹{item.totalPrice.toFixed(2)}</div>
+                  <div style={styles.cartItemTotal}>₹{(item.totalPrice || (item.price || 0) * item.quantity).toFixed(2)}</div>
                 </div>
               ))
             )}
@@ -306,25 +786,25 @@ export default function CheckoutScreen() {
           <div style={styles.orderSummary}>
             <div style={styles.summaryRow}>
               <span>Items ({itemCount})</span>
-              <span>₹{subtotal.toFixed(2)}</span>
+              <span>₹{(subtotal || 0).toFixed(2)}</span>
             </div>
             <div style={styles.summaryRow}>
               <span>Delivery Charges</span>
-              <span>₹{deliveryCharge.toFixed(2)}</span>
+              <span>₹{(deliveryCharge || 0).toFixed(2)}</span>
             </div>
             {discount > 0 && (
               <div style={styles.summaryRow}>
                 <span>Discount</span>
-                <span style={styles.discountText}>-₹{discount.toFixed(2)}</span>
+                <span style={styles.discountText}>-₹{(discount || 0).toFixed(2)}</span>
               </div>
             )}
             <div style={styles.summaryRow}>
               <span>Taxes & Fees</span>
-              <span>₹{vatAmount.toFixed(2)}</span>
+              <span>₹{(vatAmount || 0).toFixed(2)}</span>
             </div>
             <div style={styles.totalRow}>
               <span style={styles.totalLabel}>Total</span>
-              <span style={styles.totalAmount}>₹{total.toFixed(2)}</span>
+              <span style={styles.totalAmount}>₹{(total || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -333,9 +813,14 @@ export default function CheckoutScreen() {
         <div style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>Delivery Address</h2>
-            <button style={styles.addButton} onClick={handleAddAddress}>
-              + Add New
-            </button>
+            <div>
+              <button style={{...styles.addButton, marginRight: '10px'}} onClick={loadAddresses}>
+                ↻ Refresh
+              </button>
+              <button style={styles.addButton} onClick={handleAddAddress}>
+                + Add New
+              </button>
+            </div>
           </div>
           <div style={styles.addressList}>
             {isAddressLoading ? (
@@ -345,6 +830,17 @@ export default function CheckoutScreen() {
             ) : savedAddresses.length === 0 ? (
               <div style={{padding: '20px', textAlign: 'center'}}>
                 <p>No saved addresses found. Add your first address.</p>
+                {user && (
+                  <div>
+                    <p><strong>User ID:</strong> {user.id}</p>
+                    <p><strong>User ID Type:</strong> {typeof user.id === 'string' ? 'string' : typeof user.id}</p>
+                    <p><strong>User ID Format:</strong> {user.id.includes('-') ? 'UUID format' : 'Not UUID format'}</p>
+                    <p><strong>Auth Status:</strong> {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
+                  </div>
+                )}
+                <button onClick={loadAddresses} style={{padding: '8px 16px', margin: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px'}}>
+                  Try Again
+                </button>
               </div>
             ) : (
               savedAddresses.map((address) => (
@@ -453,26 +949,47 @@ export default function CheckoutScreen() {
               🚚 Estimated delivery: 30-45 minutes
             </p>
             <p style={styles.totalInfo}>
-              Total: <span style={styles.totalPrice}>₹{total.toFixed(2)}</span>
+              Total: <span style={styles.totalPrice}>₹{(total || 0).toFixed(2)}</span>
             </p>
           </div>
           <button
             style={{
               ...styles.placeOrderButton,
-              ...((isLoading || !selectedAddress || items.length === 0) ? styles.placeOrderButtonDisabled : {})
+              ...((isLoading || (!selectedAddress && isAuthenticated) || items.length === 0) ? styles.placeOrderButtonDisabled : {})
             }}
             onClick={handlePlaceOrder}
-            disabled={isLoading || !selectedAddress || items.length === 0}
+            disabled={isLoading || (!selectedAddress && isAuthenticated) || items.length === 0}
             title={
-              !selectedAddress 
+              (!selectedAddress && isAuthenticated)
                 ? 'Please select a delivery address' 
                 : items.length === 0 
                 ? 'Your cart is empty' 
                 : ''
             }
           >
-            {isLoading ? 'Placing Order...' : 'Place Order'}
+            {isLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ 
+                  width: '20px', 
+                  height: '20px', 
+                  border: '3px solid rgba(255,255,255,0.3)', 
+                  borderTop: '3px solid white',
+                  borderRadius: '50%',
+                  marginRight: '8px',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                Processing Order...
+              </div>
+            ) : 'Place Order'}
           </button>
+          
+          {/* Additional hint text for button state */}
+          {(!selectedAddress && isAuthenticated) && (
+            <p style={{ color: '#f44336', fontSize: '14px', marginTop: '8px' }}>Please select a delivery address</p>
+          )}
+          {(items.length === 0) && (
+            <p style={{ color: '#f44336', fontSize: '14px', marginTop: '8px' }}>Your cart is empty</p>
+          )}
         </div>
       </div>
     </div>

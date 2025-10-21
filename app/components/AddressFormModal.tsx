@@ -23,6 +23,7 @@ interface AddressFormModalProps {
   onSave: (address: Address) => void;
   initialData?: Partial<Address>;
   isEdit?: boolean;
+  isSubmitting?: boolean;
 }
 
 const phoneRegex = /^[6-9]\d{9}$/;
@@ -45,7 +46,8 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
   onClose, 
   onSave, 
   initialData = {},
-  isEdit = false
+  isEdit = false,
+  isSubmitting = false
 }) => {
   const [formData, setFormData] = useState<Partial<Address>>({
     name: '',
@@ -61,7 +63,10 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
   });
   
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [internalSubmitting, setInternalSubmitting] = useState(false);
+  
+  // Use either the prop or internal state for submission status
+  const isFormSubmitting = isSubmitting || internalSubmitting;
   
   const handleChange = (field: keyof Address, value: string | boolean) => {
     setFormData({
@@ -80,7 +85,7 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
   
   const handleSave = () => {
     try {
-      setIsSubmitting(true);
+      setInternalSubmitting(true);
       addressSchema.parse(formData);
       
       // Call the onSave callback with the form data
@@ -117,7 +122,7 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
         });
         setErrors(newErrors);
       }
-      setIsSubmitting(false);
+      setInternalSubmitting(false);
     }
   };
   
@@ -287,11 +292,11 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
         
         <div className="modal-footer">
           <button 
-            className={`save-button ${isSubmitting ? 'disabled' : ''}`}
+            className={`save-button ${isFormSubmitting ? 'disabled' : ''}`}
             onClick={handleSave}
-            disabled={isSubmitting}
+            disabled={isFormSubmitting}
           >
-            {isSubmitting ? (
+            {isFormSubmitting ? (
               <>
                 <span className="spinner"></span>
                 <span style={{ marginLeft: '10px' }}>Saving...</span>

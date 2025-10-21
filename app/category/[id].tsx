@@ -1,5 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { adaptProductsForApp } from '../../lib/adapters/productAdapter';
+import productService from '../../lib/services/productService';
 import {
   Alert,
   FlatList,
@@ -8,11 +12,7 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { adaptProductsForApp } from '../../lib/adapters/productAdapter';
-import productService from '../../lib/services/productService';
+} from '../../src/components/ui/WebCompatibleComponents';
 import { useTheme } from '../../src/hooks/useTheme';
 
 import { Product } from '../../lib/types/product';
@@ -252,30 +252,33 @@ export default function CategoryScreen() {
         </View>
 
       {/* Products List */}
-      <FlatList
-        data={filteredProducts}
-        renderItem={renderProduct}
-        keyExtractor={(item: Product) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.productsList}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#4CAF50']}
-          />
-        }
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Icon name="shopping-basket" size={64} color="#ccc" />
-            <Text style={styles.emptyTitle}>No products found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try refreshing or check back later
-            </Text>
-          </View>
-        )}
-      />
+      <View style={{ flex: 1, height: '100%' }}>
+        <FlatList
+          data={filteredProducts}
+          renderItem={renderProduct}
+          keyExtractor={(item: Product) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.productsList}
+          showsVerticalScrollIndicator={true}
+          style={{ flex: 1, width: '100%' }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#4CAF50']}
+            />
+          }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Icon name="shopping-basket" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>No products found</Text>
+              <Text style={styles.emptySubtitle}>
+                Try refreshing or check back later
+              </Text>
+            </View>
+          )}
+        />
+      </View>
 
       {/* Sort Modal */}
       {renderSortModal()}

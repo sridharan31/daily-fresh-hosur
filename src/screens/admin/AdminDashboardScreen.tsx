@@ -1,13 +1,22 @@
 // src/screens/admin/AdminDashboardScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../../lib/store';
-import { fetchDashboardData } from '../../../lib/store/slices/adminSlice';
+import { AppDispatch } from '../../../lib/supabase/store';
+import { createDefaultDashboardData, fetchDashboardData } from '../../../lib/supabase/store/adminSlice';
+import { RootState } from '../../../lib/supabase/store/rootReducer';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from '../../components/ui/WebCompatibleComponents';
 
-const { width } = Dimensions.get('window');
+// Handle Dimensions for web compatibility
+const getDimensions = () => {
+  if (typeof window !== 'undefined') {
+    return { width: window.innerWidth, height: window.innerHeight };
+  }
+  return { width: 375, height: 667 }; // Default mobile dimensions
+};
+
+const { width } = getDimensions();
 
 interface NavigationProps {
   navigate: (screen: string, params?: any) => void;
@@ -38,7 +47,12 @@ const StatsCard: React.FC<{
 
 const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const { dashboardData, loading: isLoading } = useSelector((state: RootState) => state.admin);
+  
+  // Get admin state with fallback for undefined dashboardData
+  const adminState = useSelector((state: RootState) => state.admin);
+  const dashboardData = adminState?.dashboardData || createDefaultDashboardData();
+  const isLoading = adminState?.loading || false;
+  
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   useEffect(() => {
@@ -156,38 +170,38 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
       {/* Order Status Chart */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Order Status Distribution</Text>
-        {dashboardData?.orderStatus && (
+        {dashboardData?.orderStatus ? (
           <PieChart
             data={[
               {
                 name: 'Pending',
-                count: dashboardData.orderStatus.pending,
+                count: dashboardData.orderStatus.pending || 0,
                 color: '#FF9800',
                 legendFontColor: '#7F7F7F',
                 legendFontSize: 15,
               },
               {
                 name: 'Processing',
-                count: dashboardData.orderStatus.processing,
+                count: dashboardData.orderStatus.processing || 0,
                 color: '#2196F3',
                 legendFontColor: '#7F7F7F',
                 legendFontSize: 15,
               },
               {
                 name: 'Delivered',
-                count: dashboardData.orderStatus.delivered,
+                count: dashboardData.orderStatus.delivered || 0,
                 color: '#4CAF50',
                 legendFontColor: '#7F7F7F',
                 legendFontSize: 15,
               },
               {
                 name: 'Cancelled',
-                count: dashboardData.orderStatus.cancelled,
+                count: dashboardData.orderStatus.cancelled || 0,
                 color: '#F44336',
                 legendFontColor: '#7F7F7F',
                 legendFontSize: 15,
               },
-            ]}
+            ].filter(item => item.count > 0)} // Only show items with data
             width={width - 32}
             height={220}
             chartConfig={chartConfig}
@@ -196,13 +210,18 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
             paddingLeft="15"
             absolute
           />
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No order status data available</Text>
+          </View>
         )}
       </View>
 
       {/* Sales Trend Chart */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Sales Trend</Text>
-        {dashboardData?.salesTrend && (
+        {dashboardData?.salesTrend?.labels && dashboardData?.salesTrend?.data &&
+         dashboardData.salesTrend.labels.length > 0 && dashboardData.salesTrend.data.length > 0 ? (
           <LineChart
             data={{
               labels: dashboardData.salesTrend.labels,
@@ -217,13 +236,18 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
             chartConfig={chartConfig}
             bezier
           />
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No sales trend data available</Text>
+          </View>
         )}
       </View>
 
       {/* Top Products Chart */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Top Selling Products</Text>
-        {dashboardData?.topProducts && (
+        {dashboardData?.topProducts?.labels && dashboardData?.topProducts?.data && 
+         dashboardData.topProducts.labels.length > 0 && dashboardData.topProducts.data.length > 0 ? (
           <BarChart
             data={{
               labels: dashboardData.topProducts.labels,
@@ -240,6 +264,10 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
             yAxisLabel=""
             yAxisSuffix=""
           />
+        ) : (
+          <View style={styles.noDataContainer}>
+            <Text style={styles.noDataText}>No product data available</Text>
+          </View>
         )}
       </View>
 
@@ -441,6 +469,20 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: '#e5e5e5',
     borderRadius: 4,
+  },
+  noDataContainer: {
+    height: 220,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
   },
 });
 

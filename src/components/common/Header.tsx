@@ -1,9 +1,10 @@
 // app/components/common/Header.tsx - Full Featured Customer Header
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { router } from 'expo-router';
-import { AppDispatch, RootState } from '../../../lib/store';
-import { logout } from '../../../lib/store/slices/authSlice';
+import React, { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch } from '../../../lib/supabase/store';
+import { logoutUser as logout } from '../../../lib/supabase/store/actions/authActions';
+import { RootState } from '../../../lib/supabase/store/rootReducer';
 
 interface HeaderAction {
   icon: string;

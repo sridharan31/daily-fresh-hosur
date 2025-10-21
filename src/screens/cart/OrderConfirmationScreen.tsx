@@ -1,11 +1,11 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
 } from 'react-native';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
@@ -32,7 +32,7 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationProps> = () => {
   useEffect(() => {
     if (orderId) {
       // Find order by ID
-      const foundOrder = orders.find(o => o.id === orderId);
+      const foundOrder = orders.find((o: any) => o.id === orderId);
       if (foundOrder) {
         setOrder(foundOrder);
       } else {
@@ -78,7 +78,11 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationProps> = () => {
     <SafeAreaView style={styles.container}>
       <Header title="Order Confirmation" />
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.mainContainer}>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={true}
+          contentContainerStyle={styles.scrollViewContent}>
         {/* Success Message */}
         <View style={styles.successContainer}>
           <Text style={styles.successIcon}>✅</Text>
@@ -173,7 +177,8 @@ const OrderConfirmationScreen: React.FC<OrderConfirmationProps> = () => {
             </View>
           </View>
         </Card>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Action Buttons */}
       <View style={styles.bottomSection}>
@@ -198,10 +203,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  mainContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  scrollViewContent: {
+    paddingBottom: 140, // Extra padding to ensure content is not hidden behind buttons
+  },
   content: {
     flex: 1,
     padding: 16,
-    paddingBottom: 100, // Add extra padding at the bottom so content isn't hidden behind buttons
   },
   successContainer: {
     alignItems: 'center',
@@ -329,12 +340,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bottomSection: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#fff',
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
     flexDirection: 'row',
     gap: 12,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 10,
   },
   trackButton: {
     flex: 1,
