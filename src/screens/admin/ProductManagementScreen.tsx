@@ -1,16 +1,17 @@
 // src/screens/admin/ProductManagementScreen.tsx
 import React, { useCallback, useEffect, useState } from 'react';
+import ConfirmationModal from '../../components/common/ConfirmationModal';
+import Toast from '../../components/common/Toast';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Platform,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from '../../components/ui/WebCompatibleComponents';
 // Navigation imports
 import { useNavigation } from '@react-navigation/native';
@@ -45,6 +46,21 @@ const ProductManagementScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Toast state
+  const [toast, setToast] = useState({
+    visible: false,
+    message: '',
+    type: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
+  
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({
+    visible: false,
+    productId: '',
+    productName: ''
+  });
+  
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
     selectedCategory: null,
@@ -73,12 +89,21 @@ const ProductManagementScreen: React.FC = () => {
       setFilteredProducts(adaptedProducts);
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load products and categories. Please try again.');
+      showToast('Failed to load products and categories. Please try again.', 'error');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
+
+  // Toast helper functions
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
+  };
 
   // Apply filters and sorting
   const applyFilters = useCallback(() => {
@@ -198,38 +223,42 @@ const ProductManagementScreen: React.FC = () => {
     (navigation as any).navigate('EditProduct', { productId });
   };
 
-  const handleDeleteProduct = async (productId: string, productName: string) => {
-    Alert.alert(
-      'Delete Product',
-      `Are you sure you want to delete "${productName}"? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(productId);
-            try {
-              // Delete from Supabase
-              const { error } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', productId);
+  const handleDeleteProduct = (productId: string, productName: string) => {
+    setConfirmModal({
+      visible: true,
+      productId,
+      productName
+    });
+  };
 
-              if (error) throw error;
+  const confirmDelete = () => {
+    setActionLoading(confirmModal.productId);
+    performDelete(confirmModal.productId, confirmModal.productName);
+    setConfirmModal({ visible: false, productId: '', productName: '' });
+  };
 
-              // Update local state
-              setProducts(prev => prev.filter(p => p.id !== productId));
-              Alert.alert('Success', 'Product deleted successfully!');
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete product');
-            } finally {
-              setActionLoading(null);
-            }
-          }
-        }
-      ]
-    );
+  const cancelDelete = () => {
+    setConfirmModal({ visible: false, productId: '', productName: '' });
+  };
+
+  const performDelete = async (productId: string, productName: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      // Update local state
+      setProducts(prev => prev.filter(p => p.id !== productId));
+      showToast(`Product "${productName}" deleted successfully! 🗑️`, 'success');
+    } catch (error: any) {
+      showToast(error.message || 'Failed to delete product', 'error');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleToggleStatus = async (productId: string, currentStatus: boolean) => {
@@ -247,9 +276,9 @@ const ProductManagementScreen: React.FC = () => {
         p.id === productId ? { ...p, isActive: !currentStatus } : p
       ));
       
-      Alert.alert('Success', `Product ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
+      showToast(`Product ${!currentStatus ? 'activated' : 'deactivated'} successfully! ${!currentStatus ? '✅' : '⏸️'}`, 'success');
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update product status');
+      showToast(error.message || 'Failed to update product status', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -330,11 +359,17 @@ const ProductManagementScreen: React.FC = () => {
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.actionButton, styles.deleteButton]}
+          style={[
+            styles.actionButton, 
+            styles.deleteButton,
+            actionLoading === item.id && styles.actionButtonDisabled
+          ]}
           onPress={() => handleDeleteProduct(item.id, item.name)}
           disabled={actionLoading === item.id}
         >
-          <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
+          <Text style={styles.deleteButtonText}>
+            {actionLoading === item.id ? '⏳ Deleting...' : '🗑️ Delete'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -445,6 +480,24 @@ const ProductManagementScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Toast Component */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
+      
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        visible={confirmModal.visible}
+        title="Delete Product"
+        message={`Are you sure you want to delete "${confirmModal.productName}"? This action cannot be undone.`}
+        confirmText="Delete"
+        confirmColor="#dc3545"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
       <FlatList
         data={filteredProducts}
         renderItem={renderProductItem}
@@ -874,6 +927,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
     textAlign: 'center',
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
+    backgroundColor: '#6c757d',
   },
 });
 
