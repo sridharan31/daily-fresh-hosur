@@ -2,7 +2,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -10,10 +9,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from '../../../components/ui/WebCompatibleComponents';
+
 import { z } from 'zod';
 import { supabase } from '../../../../lib/supabase';
+import { Category, productService } from '../../../../lib/supabase/services/product';
+import Toast from '../../../components/common/Toast';
 
 // Zod validation schema
 const productSchema = z.object({
@@ -21,7 +22,7 @@ const productSchema = z.object({
   name_ta: z.string().min(1, 'Tamil name is required').max(100, 'Name too long'),
   description_en: z.string().max(500, 'Description too long').optional(),
   description_ta: z.string().max(500, 'Description too long').optional(),
-  category_en: z.string().min(1, 'Category is required'),
+  category_id: z.string().min(1, 'Category is required'),
   price: z.string().min(1, 'Price is required').refine((val) => {
     const num = parseFloat(val);
     return !isNaN(num) && num > 0;
@@ -38,8 +39,7 @@ interface ProductData {
   name_ta: string;
   description_en: string;
   description_ta: string;
-  category_en: string;
-  category_ta: string;
+  category_id: string;
   price: string;
   stock_quantity: string;
   unit: string;
@@ -47,16 +47,7 @@ interface ProductData {
   is_featured: boolean;
 }
 
-const CATEGORIES = [
-  { value: 'vegetables', label_en: 'Vegetables', label_ta: 'கயகறகள' },
-  { value: 'fruits', label_en: 'Fruits', label_ta: 'பழஙகள' },
-  { value: 'dairy', label_en: 'Dairy', label_ta: 'பல பரடகள' },
-  { value: 'grocery', label_en: 'Grocery', label_ta: 'மளக சமனகள' },
-  { value: 'spices', label_en: 'Spices', label_ta: 'மசலப பரடகள' },
-  { value: 'organic', label_en: 'Organic', label_ta: 'இயறக உணவகள' },
-  { value: 'frozen', label_en: 'Frozen', label_ta: 'உறநத உணவகள' },
-  { value: 'bakery', label_en: 'Bakery', label_ta: 'பககர பரடகள' },
-];
+
 
 const UNITS = [
   { value: 'kg', label_en: 'Kilogram (kg)', label_ta: 'கலகரம (க.க)' },
@@ -72,14 +63,15 @@ const UNITS = [
 const AddProductScreen: React.FC = () => {
   const navigation = useNavigation();
   const [currentLanguage, setCurrentLanguage] = useState<'en' | 'ta'>('en');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   
   const [formData, setFormData] = useState<ProductData>({
     name_en: '',
     name_ta: '',
     description_en: '',
     description_ta: '',
-    category_en: '',
-    category_ta: '',
+    category_id: '',
     price: '',
     stock_quantity: '',
     unit: 'kg',
@@ -92,16 +84,37 @@ const AddProductScreen: React.FC = () => {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showUnitPicker, setShowUnitPicker] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Toast state
+  const [toast, setToast] = useState({
+    visible: false,
+    message: '',
+    type: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
 
   useEffect(() => {
     requestImagePermissions();
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const data = await productService.getCategories(); // Only get active categories
+      setCategories(data);
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      showToast('Failed to load categories', 'error');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const requestImagePermissions = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'We need camera roll permissions!');
+        showToast('We need camera roll permissions!', 'warning');
       }
     } catch (error) {
       console.log('Permission error:', error);
@@ -115,13 +128,31 @@ const AddProductScreen: React.FC = () => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
-    
-    if (field === 'category_en') {
-      const selectedCategory = CATEGORIES.find(cat => cat.value === value);
-      if (selectedCategory) {
-        setFormData(prev => ({ ...prev, category_ta: selectedCategory.label_ta }));
-      }
-    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name_en: '',
+      name_ta: '',
+      description_en: '',
+      description_ta: '',
+      category_id: '',
+      price: '',
+      stock_quantity: '',
+      unit: 'kg',
+      is_organic: false,
+      is_featured: false,
+    });
+    setImages([]);
+    setErrors({});
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') => {
+    setToast({ visible: true, message, type });
+  };
+
+  const hideToast = () => {
+    setToast(prev => ({ ...prev, visible: false }));
   };
 
   const handleAddImage = async () => {
@@ -135,10 +166,61 @@ const AddProductScreen: React.FC = () => {
 
       if (!result.canceled && result.assets[0]) {
         setImages(prev => [...prev, result.assets[0].uri]);
-        Alert.alert('Success', 'Image added!');
+        showToast('Image added! 📸', 'success');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      showToast('Failed to pick image', 'error');
+    }
+  };
+
+  const uploadImageToSupabase = async (imageUri: string): Promise<string | null> => {
+    try {
+      console.log('Uploading image to Supabase:', imageUri);
+      
+      // If it's already a valid HTTP URL, return as is
+      if (imageUri.startsWith('http') && !imageUri.startsWith('blob:')) {
+        return imageUri;
+      }
+      
+      // Convert image URI to blob for upload
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      
+      // Generate unique filename
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2);
+      const fileName = `product_${timestamp}_${randomId}.jpg`;
+      
+      console.log('Uploading to bucket with filename:', fileName);
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Supabase upload error:', error);
+        // Fallback to placeholder if upload fails
+        return 'https://via.placeholder.com/300x300.png?text=Upload+Failed';
+      }
+      
+      console.log('Upload successful:', data);
+      
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+        
+      console.log('Public URL generated:', publicUrl);
+      return publicUrl;
+      
+    } catch (error) {
+      console.error('Image upload failed:', error);
+      // Fallback to placeholder on any error
+      return 'https://via.placeholder.com/300x300.png?text=Upload+Error';
     }
   };
 
@@ -149,7 +231,7 @@ const AddProductScreen: React.FC = () => {
         name_ta: formData.name_ta.trim(),
         description_en: formData.description_en.trim(),
         description_ta: formData.description_ta.trim(),
-        category_en: formData.category_en,
+        category_id: formData.category_id,
         price: formData.price,
         stock_quantity: formData.stock_quantity,
         unit: formData.unit,
@@ -168,9 +250,9 @@ const AddProductScreen: React.FC = () => {
         });
         setErrors(newErrors);
         
-        // Show first error in alert
+        // Show first error in toast
         const firstError = error.errors[0];
-        Alert.alert('Validation Error', firstError.message);
+        showToast(`Validation Error: ${firstError.message}`, 'error');
       }
       return false;
     }
@@ -181,23 +263,94 @@ const AddProductScreen: React.FC = () => {
 
     setLoading(true);
     try {
+      // Get the selected category details from database
+      const selectedCategory = categories.find(cat => cat.id === formData.category_id);
+      
+      if (!selectedCategory) {
+        showToast('Please select a valid category', 'error');
+        return;
+      }
+      
+      // Upload images to Supabase Storage
+      let uploadedImageUrls: string[] = [];
+      if (images.length > 0) {
+        console.log(`Starting upload of ${images.length} images`);
+        
+        for (let i = 0; i < images.length; i++) {
+          const imageUri = images[i];
+          console.log(`Uploading image ${i + 1}/${images.length}`);
+          
+          const uploadedUrl = await uploadImageToSupabase(imageUri);
+          if (uploadedUrl) {
+            uploadedImageUrls.push(uploadedUrl);
+            console.log(`Successfully uploaded image ${i + 1}/${images.length}`);
+          } else {
+            console.error(`Failed to upload image ${i + 1}/${images.length}`);
+          }
+        }
+        
+        console.log(`Upload complete: ${uploadedImageUrls.length}/${images.length} images uploaded successfully`);
+        
+        if (uploadedImageUrls.length === 0) {
+          showToast('Failed to upload any images. Product will be saved without images.', 'warning');
+        } else if (uploadedImageUrls.length < images.length) {
+          showToast(`${uploadedImageUrls.length}/${images.length} images uploaded successfully.`, 'info');
+        }
+      }
+      
+      // Map category names based on the selected category
+      const getCategoryEnumValue = (categoryName: string) => {
+        const mapping: Record<string, string> = {
+          'Vegetables': 'vegetables',
+          'Fruits': 'fruits', 
+          'Dairy': 'dairy',
+          'Grocery': 'grocery',
+          'Spices': 'spices',
+          'Organic': 'organic',
+          'Frozen': 'frozen',
+          'Bakery': 'bakery'
+        };
+        return mapping[categoryName] || 'grocery';
+      };
+      
       const productData = {
         name_en: formData.name_en.trim(),
         name_ta: formData.name_ta.trim(),
         description_en: formData.description_en.trim(),
         description_ta: formData.description_ta.trim(),
-        category_en: formData.category_en,
-        category_ta: formData.category_ta,
+        category_id: formData.category_id,
+        category_en: getCategoryEnumValue(selectedCategory.name_en),
+        category_ta: selectedCategory.name_ta,
         price: parseFloat(formData.price),
         stock_quantity: parseInt(formData.stock_quantity) || 0,
         unit: formData.unit,
         is_organic: formData.is_organic,
         is_featured: formData.is_featured,
         is_active: true,
-        images: images,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        images: uploadedImageUrls.length > 0 ? uploadedImageUrls : null,
       };
+
+      // Check for duplicate products before insertion
+      const { data: existingProductsEn, error: checkErrorEn } = await supabase
+        .from('products')
+        .select('name_en')
+        .eq('name_en', productData.name_en);
+
+      const { data: existingProductsTa, error: checkErrorTa } = await supabase
+        .from('products')
+        .select('name_ta')
+        .eq('name_ta', productData.name_ta);
+
+      if (checkErrorEn || checkErrorTa) {
+        console.error('Error checking for duplicates:', checkErrorEn || checkErrorTa);
+      } else if ((existingProductsEn && existingProductsEn.length > 0) || (existingProductsTa && existingProductsTa.length > 0)) {
+        const duplicateName = existingProductsEn && existingProductsEn.length > 0 ? productData.name_en : productData.name_ta;
+        showToast(
+          `Duplicate product: "${duplicateName}" already exists. Please use a different name.`,
+          'warning'
+        );
+        return;
+      }
 
       const { error } = await supabase
         .from('products')
@@ -205,31 +358,31 @@ const AddProductScreen: React.FC = () => {
 
       if (error) throw error;
 
-      Alert.alert('Success', 'Product added successfully!', [
-        { 
-          text: 'Add Another', 
-          onPress: () => {
-            setFormData({
-              name_en: '', name_ta: '', description_en: '', description_ta: '',
-              category_en: '', category_ta: '', price: '', stock_quantity: '',
-              unit: 'kg', is_organic: false, is_featured: false,
-            });
-            setImages([]);
-            setErrors({});
-          }
-        },
-        { text: 'Done', onPress: () => navigation.goBack() }
-      ]);
+      // Show success toast
+      showToast('Product added successfully! 🎉', 'success');
+      
+      // Reset form automatically after successful submission
+      setTimeout(() => {
+        resetForm();
+      }, 1000); // Small delay to let user see the success message
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add product');
+      showToast(error.message || 'Failed to add product', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={styles.safeContainer}>
+      {/* Toast Component */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+        onHide={hideToast}
+      />
+      <View style={styles.container}>
+        <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}> Back</Text>
         </TouchableOpacity>
@@ -239,7 +392,15 @@ const AddProductScreen: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollView}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={true}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={true}
+          bounces={true}
+          removeClippedSubviews={false}
+        >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
           
@@ -249,7 +410,7 @@ const AddProductScreen: React.FC = () => {
               style={[styles.input, errors.name_en && styles.inputError]}
               placeholder="Enter English name"
               value={formData.name_en}
-              onChangeText={(value) => handleInputChange('name_en', value)}
+              onChangeText={(value: string) => handleInputChange('name_en', value)}
             />
             {errors.name_en && <Text style={styles.errorText}>{errors.name_en}</Text>}
           </View>
@@ -260,7 +421,7 @@ const AddProductScreen: React.FC = () => {
               style={[styles.input, errors.name_ta && styles.inputError]}
               placeholder="தமழ பயர"
               value={formData.name_ta}
-              onChangeText={(value) => handleInputChange('name_ta', value)}
+              onChangeText={(value: string) => handleInputChange('name_ta', value)}
             />
             {errors.name_ta && <Text style={styles.errorText}>{errors.name_ta}</Text>}
           </View>
@@ -271,7 +432,7 @@ const AddProductScreen: React.FC = () => {
               style={[styles.input, styles.textArea, errors.description_en && styles.inputError]}
               placeholder="English description"
               value={formData.description_en}
-              onChangeText={(value) => handleInputChange('description_en', value)}
+              onChangeText={(value: string) => handleInputChange('description_en', value)}
               multiline
             />
             {errors.description_en && <Text style={styles.errorText}>{errors.description_en}</Text>}
@@ -283,7 +444,7 @@ const AddProductScreen: React.FC = () => {
               style={[styles.input, styles.textArea, errors.description_ta && styles.inputError]}
               placeholder="தமழ வளககம"
               value={formData.description_ta}
-              onChangeText={(value) => handleInputChange('description_ta', value)}
+              onChangeText={(value: string) => handleInputChange('description_ta', value)}
               multiline
             />
             {errors.description_ta && <Text style={styles.errorText}>{errors.description_ta}</Text>}
@@ -292,17 +453,17 @@ const AddProductScreen: React.FC = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Category *</Text>
             <TouchableOpacity
-              style={[styles.categoryButton, errors.category_en && styles.inputError]}
+              style={[styles.categoryButton, errors.category_id && styles.inputError]}
               onPress={() => setShowCategoryPicker(true)}
             >
-              <Text style={[styles.categoryButtonText, !formData.category_en && styles.placeholder]}>
-                {formData.category_en 
-                  ? CATEGORIES.find(c => c.value === formData.category_en)?.[currentLanguage === 'en' ? 'label_en' : 'label_ta']
+              <Text style={[styles.categoryButtonText, !formData.category_id && styles.placeholder]}>
+                {formData.category_id 
+                  ? categories.find(c => c.id === formData.category_id)?.[currentLanguage === 'en' ? 'name_en' : 'name_ta']
                   : 'Select Category'
                 }
               </Text>
             </TouchableOpacity>
-            {errors.category_en && <Text style={styles.errorText}>{errors.category_en}</Text>}
+            {errors.category_id && <Text style={styles.errorText}>{errors.category_id}</Text>}
           </View>
         </View>
 
@@ -316,7 +477,7 @@ const AddProductScreen: React.FC = () => {
                 style={[styles.input, errors.price && styles.inputError]}
                 placeholder="0.00"
                 value={formData.price}
-                onChangeText={(value) => handleInputChange('price', value)}
+                onChangeText={(value: string) => handleInputChange('price', value)}
                 keyboardType="numeric"
               />
               {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
@@ -345,7 +506,7 @@ const AddProductScreen: React.FC = () => {
               style={[styles.input, errors.stock_quantity && styles.inputError]}
               placeholder="0"
               value={formData.stock_quantity}
-              onChangeText={(value) => handleInputChange('stock_quantity', value)}
+              onChangeText={(value: string) => handleInputChange('stock_quantity', value)}
               keyboardType="numeric"
             />
             {errors.stock_quantity && <Text style={styles.errorText}>{errors.stock_quantity}</Text>}
@@ -399,9 +560,8 @@ const AddProductScreen: React.FC = () => {
             <Text style={styles.checkboxLabel}>Featured Product</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
 
-      <View style={styles.buttonContainer}>
+        <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.saveButton, loading && styles.disabled]}
           onPress={handleSaveProduct}
@@ -411,24 +571,25 @@ const AddProductScreen: React.FC = () => {
             {loading ? 'Saving...' : 'Save Product'}
           </Text>
         </TouchableOpacity>
-      </View>
+        </View>
+      </ScrollView>
 
       {showCategoryPicker && (
         <View style={styles.pickerContainer}>
           <View style={styles.pickerModal}>
             <Text style={styles.pickerTitle}>Select Category</Text>
             <ScrollView style={styles.pickerScrollView}>
-              {CATEGORIES.map((category) => (
+              {categories.filter(cat => cat.is_active).map((category) => (
                 <TouchableOpacity
-                  key={category.value}
+                  key={category.id}
                   style={styles.pickerItem}
                   onPress={() => {
-                    handleInputChange('category_en', category.value);
+                    handleInputChange('category_id', category.id);
                     setShowCategoryPicker(false);
                   }}
                 >
                   <Text style={styles.pickerItemText}>
-                    {currentLanguage === 'en' ? category.label_en : category.label_ta}
+                    {currentLanguage === 'en' ? category.name_en : category.name_ta}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -472,11 +633,17 @@ const AddProductScreen: React.FC = () => {
           </View>
         </View>
       )}
-    </SafeAreaView>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  safeContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    paddingTop: 40, // Safe area top padding
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
@@ -512,6 +679,11 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
   },
   section: {
     backgroundColor: '#ffffff',
@@ -672,10 +844,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   buttonContainer: {
+    marginTop: 20,
+    marginHorizontal: 16,
     padding: 16,
     backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   saveButton: {
     backgroundColor: '#0ea5e9',

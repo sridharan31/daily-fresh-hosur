@@ -1,0 +1,16 @@
+[{
+  "name_en": "Test Orange Fixed",
+  "name_ta": "சோதனை ஆரஞ்சு",
+  "description_en": "Test orange description",
+  "description_ta": "சோதனை ஆரஞ்சு விளக்கம்",
+  "category_id": "550e8400-e29b-41d4-a716-446655440001",
+  "category_en": "fruits",
+  "category_ta": "பழங்கள்",
+  "price": 35.0,
+  "stock_quantity": 20,
+  "unit": "kg",
+  "is_organic": false,
+  "is_featured": false,
+  "is_active": true,
+  "images": ["https://via.placeholder.com/300x300.png"]
+}]

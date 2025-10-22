@@ -3,16 +3,18 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
+import { Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useSelector } from 'react-redux';
+import { supabase } from '../../lib/supabase/client';
 import { RootState } from '../../lib/supabase/store/rootReducer';
 import { AdminLogoutModal } from '../../src/components/admin/AdminLogoutModal';
 import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from '../components/ui/WebCompatibleComponents';
 
 // Types
@@ -90,6 +92,7 @@ import ProductManagementScreen from '../../src/screens/admin/ProductManagementSc
 import SlotManagementScreen from '../../src/screens/admin/SlotManagementScreen';
 
 // Sub-screens for detailed management
+import CategoryManagementScreen from '../../src/screens/admin/CategoryManagementScreen';
 import AddProductScreen from '../../src/screens/admin/products/AddProductScreen';
 import EditProductScreen from '../../src/screens/admin/products/EditProductScreen';
 import ProductDetailsScreen from '../../src/screens/admin/products/ProductDetailsScreen';
@@ -349,7 +352,7 @@ const AdminNavigator: React.FC = () => {
       <Stack.Screen
         name="AddProduct"
         component={AddProductScreen}
-        options={{
+        options={({ navigation }) => ({
           headerShown: true,
           headerStyle: {
             backgroundColor: '#4CAF50',
@@ -362,13 +365,37 @@ const AdminNavigator: React.FC = () => {
           headerTintColor: '#fff',
           title: 'Add New Product',
           presentation: 'modal',
-        }}
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ marginRight: 15, padding: 5 }}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Logout', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        await supabase.auth.signOut();
+                        navigation.navigate('Login' as never);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Icon name="logout" size={20} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
       />
 
       <Stack.Screen
         name="EditProduct"
         component={EditProductScreen}
-        options={{
+        options={({ navigation }) => ({
           headerShown: true,
           headerStyle: {
             backgroundColor: '#4CAF50',
@@ -380,7 +407,31 @@ const AdminNavigator: React.FC = () => {
           },
           headerTintColor: '#fff',
           title: 'Edit Product',
-        }}
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ marginRight: 15, padding: 5 }}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Logout', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        await supabase.auth.signOut();
+                        navigation.navigate('Login' as never);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Icon name="logout" size={20} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
       />
 
       <Stack.Screen
@@ -401,15 +452,49 @@ const AdminNavigator: React.FC = () => {
         }}
       />
 
-      {/* <Stack.Screen
+      <Stack.Screen
         name="CategoryManagement"
         component={CategoryManagementScreen}
-        options={{
-          title: 'Manage Categories',
-        }}
+        options={({ navigation }) => ({
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
+          title: 'Category Management',
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ marginRight: 15, padding: 5 }}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Logout', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        await supabase.auth.signOut();
+                        navigation.navigate('Login' as never);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Icon name="logout" size={20} color="#fff" />
+            </TouchableOpacity>
+          ),
+        })}
       />
 
-      <Stack.Screen
+      {/* <Stack.Screen
         name="BulkProductUpdate"
         component={BulkProductUpdateScreen}
         options={{

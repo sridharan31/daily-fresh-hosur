@@ -289,6 +289,16 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
             activeOpacity={0.85}
             hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
             style={styles.actionButton}
+            onPress={() => navigation.navigate('CategoryManagement')}
+          >
+            <Icon name="category" size={24} color="#673AB7" />
+            <Text style={styles.actionButtonText}>Categories</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
             onPress={() => navigation.navigate('SlotManagement')}
           >
             <Icon name="schedule" size={24} color="#2196F3" />

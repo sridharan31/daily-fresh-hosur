@@ -2,39 +2,52 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
-    Platform,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
+    TextInput,
+    TouchableOpacity,
     View,
-} from 'react-native';
+} from '../../../components/ui/WebCompatibleComponents';
 
-import Button from '../../../components/common/Button';
-import Header from '../../../components/common/Header';
-import Input from '../../../components/common/Input';
-import LoadingScreen from '../../../components/common/LoadingScreen';
-import { AdminNavigationProp, AdminRouteProp } from '../../../navigation/navigationTypes';
+import { supabase } from '../../../../lib/supabase';
+
+interface FormData {
+  name_en: string;
+  name_ta: string;
+  description_en: string;
+  description_ta: string;
+  category_en: string;
+  category_ta: string;
+  price: string;
+  stock_quantity: string;
+  unit: string;
+  is_organic: boolean;
+  is_featured: boolean;
+  is_active: boolean;
+}
 
 const EditProductScreen: React.FC = () => {
-  const navigation = useNavigation<AdminNavigationProp>();
-  const route = useRoute<AdminRouteProp<'EditProduct'>>();
-  const { productId } = route.params;
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { productId } = route.params as { productId: string };
   
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+  const [formData, setFormData] = useState<FormData>({
+    name_en: '',
+    name_ta: '',
+    description_en: '',
+    description_ta: '',
+    category_en: '',
+    category_ta: '',
     price: '',
-    originalPrice: '',
-    category: '',
-    unit: '',
-    weight: '',
-    stockQuantity: '',
-    minStockLevel: '',
-    brand: '',
-    sku: '',
-    tags: '',
+    stock_quantity: '',
+    unit: 'kg',
+    is_organic: false,
+    is_featured: false,
+    is_active: true,
   });
   
   const [loading, setLoading] = useState(true);
@@ -46,47 +59,74 @@ const EditProductScreen: React.FC = () => {
 
   const loadProductData = async () => {
     try {
-      // Implementation for loading product data
-      // Mock data for now
-      setFormData({
-        name: 'Sample Product',
-        description: 'Sample description',
-        price: '29.99',
-        originalPrice: '39.99',
-        category: 'Fruits',
-        unit: 'kg',
-        weight: '1kg',
-        stockQuantity: '100',
-        minStockLevel: '10',
-        brand: 'Fresh Brand',
-        sku: 'SP001',
-        tags: 'fresh, organic',
-      });
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+
+      if (error) throw error;
+      
+      if (product) {
+        setFormData({
+          name_en: product.name_en || '',
+          name_ta: product.name_ta || '',
+          description_en: product.description_en || '',
+          description_ta: product.description_ta || '',
+          category_en: product.category_en || '',
+          category_ta: product.category_ta || '',
+          price: product.price?.toString() || '',
+          stock_quantity: product.stock_quantity?.toString() || '',
+          unit: product.unit || 'kg',
+          is_organic: product.is_organic || false,
+          is_featured: product.is_featured || false,
+          is_active: product.is_active !== false,
+        });
+      }
     } catch (error: any) {
       Alert.alert('Error', 'Failed to load product data');
+      console.error('Load product error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   const handleSaveProduct = async () => {
-    if (!formData.name || !formData.price || !formData.category) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (!formData.name_en || !formData.name_ta || !formData.price || !formData.category_en) {
+      Alert.alert('Error', 'Please fill in all required fields (English name, Tamil name, price, and category)');
       return;
     }
 
     setSaving(true);
     try {
-      // Implementation for updating product
-      Alert.alert('Success', 'Product updated successfully', [
+      const updateData = {
+        name_en: formData.name_en.trim(),
+        name_ta: formData.name_ta.trim(),
+        description_en: formData.description_en.trim(),
+        description_ta: formData.description_ta.trim(),
+        category_en: formData.category_en,
+        category_ta: formData.category_ta,
+        price: parseFloat(formData.price),
+        stock_quantity: parseInt(formData.stock_quantity) || 0,
+        unit: formData.unit,
+        is_organic: formData.is_organic,
+        is_featured: formData.is_featured,
+        is_active: formData.is_active,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Product updated successfully!', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to update product');
+      Alert.alert('Error', error.message || 'Failed to update product');
     } finally {
       setSaving(false);
     }
@@ -102,206 +142,345 @@ const EditProductScreen: React.FC = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            setSaving(true);
             try {
-              // Implementation for deleting product
-              Alert.alert('Success', 'Product deleted successfully', [
+              const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', productId);
+
+              if (error) throw error;
+
+              Alert.alert('Success', 'Product deleted successfully!', [
                 { text: 'OK', onPress: () => navigation.goBack() }
               ]);
             } catch (error: any) {
-              Alert.alert('Error', 'Failed to delete product');
+              Alert.alert('Error', error.message || 'Failed to delete product');
+            } finally {
+              setSaving(false);
             }
-          },
-        },
+          }
+        }
       ]
     );
   };
 
   if (loading) {
-    return <LoadingScreen message="Loading product..." />;
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Loading product...</Text>
+      </View>
+    );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <Header 
-        title="Edit Product" 
-        showBack 
-      />
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backButton}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Edit Product</Text>
+        <View style={{ width: 60 }} />
+      </View>
       
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Basic Information */}
+      <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Basic Information</Text>
           
-          <Input
-            label="Product Name *"
-            placeholder="Enter product name"
-            value={formData.name}
-            onChangeText={(value) => handleInputChange('name', value)}
-          />
-          
-          <Input
-            label="Description"
-            placeholder="Enter product description"
-            value={formData.description}
-            onChangeText={(value) => handleInputChange('description', value)}
-            multiline
-            numberOfLines={4}
-          />
-          
-          <Input
-            label="Category *"
-            placeholder="Select category"
-            value={formData.category}
-            onChangeText={(value) => handleInputChange('category', value)}
-          />
-          
-          <Input
-            label="Brand"
-            placeholder="Enter brand name"
-            value={formData.brand}
-            onChangeText={(value) => handleInputChange('brand', value)}
-          />
-        </View>
-
-        {/* Pricing */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pricing</Text>
-          
-          <View style={styles.row}>
-            <Input
-              label="Price *"
-              placeholder="0.00"
-              value={formData.price}
-              onChangeText={(value) => handleInputChange('price', value)}
-              keyboardType="decimal-pad"
-              containerStyle={styles.halfInput}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Product Name (English) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter English name"
+              value={formData.name_en}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, name_en: value }))}
             />
-            
-            <Input
-              label="Original Price"
-              placeholder="0.00"
-              value={formData.originalPrice}
-              onChangeText={(value) => handleInputChange('originalPrice', value)}
-              keyboardType="decimal-pad"
-              containerStyle={styles.halfInput}
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Product Name (Tamil) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="தமிழ் பெயர்"
+              value={formData.name_ta}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, name_ta: value }))}
+            />
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Description (English)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="English description"
+              value={formData.description_en}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, description_en: value }))}
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Description (Tamil)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="தமிழ் விளக்கம்"
+              value={formData.description_ta}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, description_ta: value }))}
+              multiline
+              numberOfLines={3}
             />
           </View>
         </View>
 
-        {/* Inventory */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Inventory</Text>
+          <Text style={styles.sectionTitle}>Category</Text>
           
-          <View style={styles.row}>
-            <Input
-              label="Stock Quantity"
-              placeholder="0"
-              value={formData.stockQuantity}
-              onChangeText={(value) => handleInputChange('stockQuantity', value)}
-              keyboardType="numeric"
-              containerStyle={styles.halfInput}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Category (English) *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Select or enter category"
+              value={formData.category_en}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, category_en: value }))}
             />
-            
-            <Input
-              label="Min Stock Level"
-              placeholder="0"
-              value={formData.minStockLevel}
-              onChangeText={(value) => handleInputChange('minStockLevel', value)}
-              keyboardType="numeric"
-              containerStyle={styles.halfInput}
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Category (Tamil)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="வகையை தேர்ந்தெடுக்கவும்"
+              value={formData.category_ta}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, category_ta: value }))}
             />
           </View>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.buttonContainer}>
-          <Button
-            title="Save Changes"
-            onPress={handleSaveProduct}
-            style={styles.saveButton}
-            loading={saving}
-          />
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pricing & Stock</Text>
           
-          <Button
-            title="Delete Product"
-            onPress={handleDeleteProduct}
-            style={styles.deleteButton}
-            textStyle={styles.deleteButtonText}
-            variant="outline"
-          />
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.flex1]}>
+              <Text style={styles.label}>Price (₹) *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="0.00"
+                value={formData.price}
+                onChangeText={(value: string) => setFormData(prev => ({ ...prev, price: value }))}
+                keyboardType="numeric"
+              />
+            </View>
+            
+            <View style={[styles.inputContainer, styles.flex1, styles.ml10]}>
+              <Text style={styles.label}>Unit</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="kg"
+                value={formData.unit}
+                onChangeText={(value: string) => setFormData(prev => ({ ...prev, unit: value }))}
+              />
+            </View>
+          </View>
           
-          <Button
-            title="Cancel"
-            onPress={() => navigation.goBack()}
-            style={styles.cancelButton}
-            textStyle={styles.cancelButtonText}
-            variant="outline"
-          />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Stock Quantity</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              value={formData.stock_quantity}
+              onChangeText={(value: string) => setFormData(prev => ({ ...prev, stock_quantity: value }))}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Options</Text>
+          
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>Organic Product</Text>
+            <Switch
+              value={formData.is_organic}
+              onValueChange={(value: boolean) => setFormData(prev => ({ ...prev, is_organic: value }))}
+            />
+          </View>
+          
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>Featured Product</Text>
+            <Switch
+              value={formData.is_featured}
+              onValueChange={(value: boolean) => setFormData(prev => ({ ...prev, is_featured: value }))}
+            />
+          </View>
+          
+          <View style={styles.switchContainer}>
+            <Text style={styles.switchLabel}>Active Product</Text>
+            <Switch
+              value={formData.is_active}
+              onValueChange={(value: boolean) => setFormData(prev => ({ ...prev, is_active: value }))}
+            />
+          </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.saveButton, saving && styles.disabled]}
+          onPress={handleSaveProduct}
+          disabled={saving}
+        >
+          <Text style={styles.saveButtonText}>
+            {saving ? 'Saving...' : 'Update Product'}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.deleteButton, saving && styles.disabled]}
+          onPress={handleDeleteProduct}
+          disabled={saving}
+        >
+          <Text style={styles.deleteButtonText}>
+            Delete Product
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  backButton: {
+    fontSize: 16,
+    color: '#007bff',
+    fontWeight: '500',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#212529',
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingBottom: 40,
-  },
   section: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#212529',
     marginBottom: 16,
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#495057',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ced4da',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  halfInput: {
-    width: '48%',
+  flex1: {
+    flex: 1,
+  },
+  ml10: {
+    marginLeft: 10,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  switchLabel: {
+    fontSize: 16,
+    color: '#495057',
+    fontWeight: '500',
   },
   buttonContainer: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   saveButton: {
+    backgroundColor: '#28a745',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
     marginBottom: 12,
-    paddingVertical: 16,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   deleteButton: {
-    borderColor: '#FF5722',
-    marginBottom: 12,
-    paddingVertical: 14,
+    backgroundColor: '#dc3545',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
   },
   deleteButtonText: {
-    color: '#FF5722',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  cancelButton: {
-    borderColor: '#666',
-    paddingVertical: 14,
-  },
-  cancelButtonText: {
-    color: '#666',
+  disabled: {
+    opacity: 0.6,
   },
 });
 

@@ -7,13 +7,10 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    View,
-} from 'react-native';
+    View
+} from '../../../components/ui/WebCompatibleComponents';
 
-import Button from '../../../components/common/Button';
-import Card from '../../../components/common/Card';
-import Header from '../../../components/common/Header';
-import LoadingScreen from '../../../components/common/LoadingScreen';
+import { supabase } from '../../../../lib/supabase';
 import { AdminNavigationProp, AdminRouteProp } from '../../../navigation/navigationTypes';
 
 interface ProductDetails {
@@ -53,34 +50,40 @@ const ProductDetailsScreen: React.FC = () => {
 
   const loadProductDetails = async () => {
     try {
-      // Mock product data
-      const mockProduct: ProductDetails = {
-        id: productId,
-        name: 'Organic Bananas',
-        description: 'Fresh organic bananas from local farms. Rich in potassium and vitamins.',
-        price: 2.99,
-        originalPrice: 3.49,
-        category: 'Fruits',
-        brand: 'Organic Fresh',
-        unit: 'bunch',
-        weight: '1 bunch (~6-8 bananas)',
-        stockQuantity: 45,
-        minStockLevel: 10,
-        sku: 'ORG-BAN-001',
-        tags: ['organic', 'fresh', 'potassium', 'healthy'],
-        images: [
-          'https://via.placeholder.com/300x300/4CAF50/white?text=Bananas',
-          'https://via.placeholder.com/300x300/8BC34A/white?text=Fresh',
-        ],
-        status: 'active',
-        createdAt: '2024-01-15T10:30:00Z',
-        updatedAt: '2024-02-20T14:45:00Z',
-        salesCount: 234,
-        rating: 4.7,
-        reviewCount: 89,
-      };
-      
-      setProduct(mockProduct);
+      const { data: productData, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', productId)
+        .single();
+
+      if (error) throw error;
+
+      if (productData) {
+        const productDetails: ProductDetails = {
+          id: productData.id,
+          name: productData.name_en,
+          description: productData.description_en || '',
+          price: productData.price,
+          originalPrice: productData.mrp,
+          category: productData.category_en,
+          brand: 'Daily Fresh Hosur',
+          unit: productData.unit,
+          weight: productData.weight?.toString() || '',
+          stockQuantity: productData.stock_quantity,
+          minStockLevel: 10, // Default value
+          sku: productData.id.slice(0, 8).toUpperCase(),
+          tags: productData.tags || [],
+          images: productData.images || ['https://via.placeholder.com/300x300/4CAF50/white?text=Product'],
+          status: productData.is_active ? 'active' : 'inactive',
+          createdAt: productData.created_at,
+          updatedAt: productData.updated_at,
+          salesCount: productData.sold_count || 0,
+          rating: productData.rating || 0,
+          reviewCount: productData.review_count || 0,
+        };
+        
+        setProduct(productDetails);
+      }
     } catch (error: any) {
       Alert.alert('Error', 'Failed to load product details');
     } finally {
