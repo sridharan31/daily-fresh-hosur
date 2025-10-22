@@ -10,11 +10,11 @@ import { supabase } from '../../lib/supabase/client';
 import { RootState } from '../../lib/supabase/store/rootReducer';
 import { AdminLogoutModal } from '../../src/components/admin/AdminLogoutModal';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from '../components/ui/WebCompatibleComponents';
 
 // Types

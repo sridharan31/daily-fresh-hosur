@@ -1,11 +1,10 @@
 // src/components/common/Toast.tsx
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  StyleSheet,
-  Text,
-  View,
-  Dimensions
+    Animated,
+    Dimensions,
+    StyleSheet,
+    Text
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
