@@ -2,15 +2,18 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View
+  Alert,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
 } from '../../../components/ui/WebCompatibleComponents';
 
 import { supabase } from '../../../../lib/supabase';
+import Button from '../../../components/common/Button';
+import Card from '../../../components/common/Card';
+import LoadingScreen from '../../../components/common/LoadingScreen';
 import { AdminNavigationProp, AdminRouteProp } from '../../../navigation/navigationTypes';
 
 interface ProductDetails {
@@ -122,7 +125,6 @@ const ProductDetailsScreen: React.FC = () => {
   if (!product) {
     return (
       <View style={styles.container}>
-        <Header title="Product Details" showBack />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Product not found</Text>
         </View>
@@ -150,10 +152,10 @@ const ProductDetailsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Header 
+      {/* <Header 
         title="Product Details" 
         showBack 
-      />
+      /> */}
       
       <ScrollView
         style={styles.scrollView}
