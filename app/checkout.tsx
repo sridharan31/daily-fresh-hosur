@@ -12,6 +12,17 @@ import { fromSupabaseAddress } from '../lib/utils/addressUtils';
 import { useCart } from '../src/hooks/useCart';
 import AddressFormModal, { Address } from './components/AddressFormModal';
 
+interface DeliverySlot {
+  id: string;
+  slot_date: string;
+  start_ts: string;
+  end_ts: string;
+  slot_type: 'weekday' | 'weekend';
+  capacity: number;
+  booked_count: number;
+  status: string;
+}
+
 // Web-compatible CSS
 if (typeof window !== 'undefined') {
   require('../global.css');
@@ -310,6 +321,12 @@ export default function CheckoutScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isAddressLoading, setIsAddressLoading] = useState(true);
+  
+  // Delivery slot state
+  const [deliveryDate, setDeliveryDate] = useState<string>('');
+  const [availableSlots, setAvailableSlots] = useState<DeliverySlot[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<string>('');
+  const [slotLoading, setSlotLoading] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -386,7 +403,43 @@ export default function CheckoutScreen() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, user?.id]);
-  
+
+  // Load delivery slots when delivery date changes
+  useEffect(() => {
+    if (deliveryDate) {
+      loadDeliverySlots();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deliveryDate]);
+
+  // Load delivery slots based on selected date
+  const loadDeliverySlots = async () => {
+    if (!deliveryDate) return;
+
+    try {
+      setSlotLoading(true);
+      const selectedDate = new Date(deliveryDate);
+      const dayOfWeek = selectedDate.getDay();
+      const slotType = (dayOfWeek === 0 || dayOfWeek === 6) ? 'weekend' : 'weekday';
+
+      const { data, error } = await supabase
+        .from('delivery_slot_instances')
+        .select('*')
+        .eq('slot_date', deliveryDate)
+        .eq('slot_type', slotType)
+        .eq('status', 'available')
+        .order('start_ts');
+
+      if (error) throw error;
+      setAvailableSlots(data || []);
+    } catch (error) {
+      console.error('Error loading delivery slots:', error);
+      setAvailableSlots([]);
+    } finally {
+      setSlotLoading(false);
+    }
+  };
+
   const handleAddAddress = () => {
     // Open the address form modal
     setAddressModalVisible(true);
@@ -877,6 +930,107 @@ export default function CheckoutScreen() {
               </div>
             )))}
           </div>
+        </div>
+
+        {/* Delivery Slot Selection */}
+        <div style={styles.section}>
+          <h2 style={styles.sectionTitle}>Select Delivery Slot</h2>
+          
+          {/* Date Picker */}
+          <div style={{ marginBottom: 15 }}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+              Select Delivery Date
+            </label>
+            <input
+              type="date"
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              style={{
+                width: '100%',
+                padding: '10px',
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                fontSize: 16
+              }}
+            />
+          </div>
+
+          {/* Available Slots */}
+          {deliveryDate && (
+            <div>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
+                Choose a Time Slot
+              </label>
+              {slotLoading ? (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <p>Loading available slots...</p>
+                </div>
+              ) : availableSlots.length === 0 ? (
+                <div style={{
+                  padding: '15px',
+                  backgroundColor: '#fff3cd',
+                  borderRadius: 6,
+                  border: '1px solid #ffc107'
+                }}>
+                  <p style={{ margin: 0, color: '#856404' }}>
+                    No slots available for this date. Please select another date.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                  {availableSlots.map((slot) => {
+                    const startTime = new Date(slot.start_ts).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                    const endTime = new Date(slot.end_ts).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                    const isFull = slot.booked_count >= slot.capacity;
+                    
+                    return (
+                      <div
+                        key={slot.id}
+                        onClick={() => !isFull && setSelectedSlot(slot.id)}
+                        style={{
+                          flex: '1 1 150px',
+                          minWidth: '150px',
+                          padding: '15px',
+                          border: selectedSlot === slot.id ? '2px solid #4CAF50' : '2px solid #ddd',
+                          borderRadius: 8,
+                          backgroundColor: selectedSlot === slot.id ? '#f0f8f0' : '#fff',
+                          cursor: isFull ? 'not-allowed' : 'pointer',
+                          opacity: isFull ? 0.5 : 1,
+                          textAlign: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          color: selectedSlot === slot.id ? '#4CAF50' : '#333',
+                          marginBottom: 5
+                        }}>
+                          {startTime} - {endTime}
+                        </div>
+                        {isFull ? (
+                          <div style={{ fontSize: '12px', color: '#f44336' }}>Full</div>
+                        ) : (
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            {slot.capacity - slot.booked_count} available
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Payment Method */}

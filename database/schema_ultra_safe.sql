@@ -246,6 +246,64 @@ INSERT INTO categories (id, name_en, name_ta, description_en, description_ta, so
 ('550e8400-e29b-41d4-a716-446655440003', 'Grocery', 'மளிகை', 'Daily grocery items', 'தினசரி மளிகை பொருட்கள்', 4)
 ON CONFLICT (id) DO NOTHING;
 
+-- Create delivery_slot_templates table for recurring weekday/weekend slots
+CREATE TABLE IF NOT EXISTS delivery_slot_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slot_type VARCHAR(10) NOT NULL CHECK (slot_type IN ('weekday', 'weekend')),
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  max_orders INTEGER DEFAULT 50,
+  repeat_weekly BOOLEAN DEFAULT true,
+  repeat_end_date DATE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create delivery_slot_instances table for concrete slot instances
+CREATE TABLE IF NOT EXISTS delivery_slot_instances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id UUID REFERENCES delivery_slot_templates(id) ON DELETE CASCADE,
+  slot_date DATE NOT NULL,
+  start_ts TIMESTAMP NOT NULL,
+  end_ts TIMESTAMP NOT NULL,
+  slot_type VARCHAR(10) NOT NULL CHECK (slot_type IN ('weekday', 'weekend')),
+  capacity INTEGER NOT NULL,
+  booked_count INTEGER DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'full', 'expired', 'closed')),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(slot_date, start_ts, end_ts)
+);
+
+-- Add foreign key to orders table for delivery_slot_instance_id
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_slot_instance_id UUID REFERENCES delivery_slot_instances(id) ON DELETE SET NULL;
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_slot_templates_type ON delivery_slot_templates(slot_type);
+CREATE INDEX IF NOT EXISTS idx_slot_templates_active ON delivery_slot_templates(is_active);
+CREATE INDEX IF NOT EXISTS idx_slot_instances_date ON delivery_slot_instances(slot_date);
+CREATE INDEX IF NOT EXISTS idx_slot_instances_status ON delivery_slot_instances(status);
+CREATE INDEX IF NOT EXISTS idx_slot_instances_type ON delivery_slot_instances(slot_type);
+
+-- RLS policies for slot templates (admins can manage)
+ALTER TABLE delivery_slot_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE delivery_slot_instances ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can view active slot templates
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Anyone can view active slot templates" ON delivery_slot_templates;
+  CREATE POLICY "Anyone can view active slot templates" ON delivery_slot_templates FOR SELECT USING (is_active = true);
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
+-- Anyone can view available slot instances
+DO $$ BEGIN
+  DROP POLICY IF EXISTS "Anyone can view available slot instances" ON delivery_slot_instances;
+  CREATE POLICY "Anyone can view available slot instances" ON delivery_slot_instances FOR SELECT USING (status = 'available');
+EXCEPTION WHEN OTHERS THEN NULL;
+END $$;
+
 -- Insert sample products
 INSERT INTO products (id, name_en, name_ta, category_id, category_en, category_ta, price, mrp, stock_quantity, unit, hsn_code, images, is_featured) VALUES
 ('850e8400-e29b-41d4-a716-446655440000', 'Tomato', 'தக்காளி', '550e8400-e29b-41d4-a716-446655440000', 'vegetables', 'காய்கறிகள்', 40.00, 45.00, 100, 'kg', '07020000', ARRAY['https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400'], true),

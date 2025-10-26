@@ -1,22 +1,25 @@
 // src/screens/admin/AdminDashboardScreen.tsx
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { BarChart, LineChart, PieChart } from 'react-native-chart-kit';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
+import { supabase } from '../../../lib/supabase';
 import { AppDispatch } from '../../../lib/supabase/store';
 import { createDefaultDashboardData, fetchDashboardData } from '../../../lib/supabase/store/adminSlice';
 import { RootState } from '../../../lib/supabase/store/rootReducer';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from '../../components/ui/WebCompatibleComponents';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '../../components/ui/WebCompatibleComponents';
 
-// Handle Dimensions for web compatibility
-const getDimensions = () => {
-  if (typeof window !== 'undefined') {
-    return { width: window.innerWidth, height: window.innerHeight };
+// Get screen width safely for web and native
+const getChartWidth = () => {
+  if (typeof window !== 'undefined' && window.innerWidth) {
+    return Math.max(300, window.innerWidth - 32);
   }
-  return { width: 375, height: 667 }; // Default mobile dimensions
+  // For React Native, use a safe default that works for most screens
+  return 340; // Safe width for most mobile screens
 };
 
-const { width } = getDimensions();
+const CHART_WIDTH = getChartWidth();
 
 interface NavigationProps {
   navigate: (screen: string, params?: any) => void;
@@ -47,6 +50,7 @@ const StatsCard: React.FC<{
 
 const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   
   // Get admin state with fallback for undefined dashboardData
   const adminState = useSelector((state: RootState) => state.admin);
@@ -54,6 +58,28 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
   const isLoading = adminState?.loading || false;
   
   const [selectedPeriod, setSelectedPeriod] = useState('today');
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+              router.replace('/');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout');
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useEffect(() => {
     dispatch(fetchDashboardData(selectedPeriod));
@@ -131,7 +157,17 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+        >
+          <Icon name="logout" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.headerContent}>
         {renderPeriodSelector()}
       </View>
 
@@ -202,7 +238,7 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
                 legendFontSize: 15,
               },
             ].filter(item => item.count > 0)} // Only show items with data
-            width={width - 32}
+            width={CHART_WIDTH}
             height={220}
             chartConfig={chartConfig}
             accessor="count"
@@ -231,7 +267,7 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
                 },
               ],
             }}
-            width={width - 32}
+            width={CHART_WIDTH}
             height={220}
             chartConfig={chartConfig}
             bezier
@@ -257,7 +293,7 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
                 },
               ],
             }}
-            width={width - 32}
+            width={CHART_WIDTH}
             height={220}
             chartConfig={chartConfig}
             verticalLabelRotation={30}
@@ -340,27 +376,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#fff',
+    flexDirection: 'row',
+    backgroundColor: '#4CAF50',
     paddingHorizontal: 16,
-    paddingVertical: 24,
-    elevation: 2,
+    paddingVertical: 16,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
+    alignItems: 'center',
+  },
+  headerContent: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 16,
+    color: '#fff',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   periodSelector: {
     flexDirection: 'row',
     backgroundColor: '#f3f4f6',
     borderRadius: 8,
     padding: 4,
-    marginHorizontal: 8,
   },
   periodButton: {
     flex: 1,

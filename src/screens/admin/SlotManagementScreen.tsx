@@ -1,9 +1,14 @@
 // src/screens/admin/SlotManagementScreen.tsx
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useNavigation } from '@react-navigation/native';
 import React, { useCallback, useEffect, useState } from 'react';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { supabase } from '../../../lib/supabase';
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,484 +17,574 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../../lib/store';
-import {
-  createDeliverySlot,
-  deleteDeliverySlot,
-  fetchDeliverySlots,
-  getSlotUtilization,
-  updateDeliverySlot,
-} from '../../../lib/store/slices/adminSlice';
-import { DeliverySlot } from '../../../lib/types/delivery';
+} from '../../components/ui/WebCompatibleComponents';
+
+interface SlotTemplate {
+  id: string;
+  slot_type: 'weekday' | 'weekend';
+  start_time: string;
+  end_time: string;
+  max_orders: number;
+  repeat_weekly: boolean;
+  repeat_end_date: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface SlotInstance {
+  id: string;
+  template_id: string;
+  slot_date: string;
+  start_ts: string;
+  end_ts: string;
+  slot_type: 'weekday' | 'weekend';
+  capacity: number;
+  booked_count: number;
+  status: 'available' | 'full' | 'expired' | 'closed';
+}
 
 interface SlotFormData {
-  date: string;
-  timeFrom: string;
-  timeTo: string;
-  capacity: string;
-  charge: string;
-  type: 'morning' | 'evening' | 'express';
-  available: boolean;
+  slot_type: 'weekday' | 'weekend';
+  start_time: string;
+  end_time: string;
+  max_orders: string;
+  repeat_weekly: boolean;
+  repeat_end_date: string;
 }
 
 const SlotManagementScreen: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { deliverySlots, deliverySlotsLoading } = useSelector((state: RootState) => state.admin);
-  
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<DeliverySlot | null>(null);
+  const navigation = useNavigation();
+  const [templates, setTemplates] = useState<SlotTemplate[]>([]);
+  const [instances, setInstances] = useState<SlotInstance[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [utilization, setUtilization] = useState<{ [key: string]: number }>({});
+  const [activeTab, setActiveTab] = useState<'weekday' | 'weekend'>('weekday');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<SlotTemplate | null>(null);
   
   const [formData, setFormData] = useState<SlotFormData>({
-    date: new Date().toISOString().split('T')[0],
-    timeFrom: '09:00',
-    timeTo: '12:00',
-    capacity: '50',
-    charge: '0',
-    type: 'morning',
-    available: true,
+    slot_type: 'weekday',
+    start_time: '09:00',
+    end_time: '12:00',
+    max_orders: '50',
+    repeat_weekly: true,
+    repeat_end_date: '',
   });
 
+  // Date/time picker states
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+
   useEffect(() => {
-    loadSlots();
-    loadUtilization();
-  }, [selectedDate]);
+    loadTemplates();
+    loadInstances();
+  }, [activeTab]);
 
-  const loadSlots = useCallback(() => {
-    dispatch(fetchDeliverySlots({ date: selectedDate }));
-  }, [dispatch, selectedDate]);
-
-  const loadUtilization = useCallback(async () => {
+  const loadTemplates = useCallback(async () => {
     try {
-      const result = await dispatch(getSlotUtilization({ dateRange: selectedDate }));
-      if (result.payload && Array.isArray(result.payload)) {
-        const utilizationMap: { [key: string]: number } = {};
-        result.payload.forEach((item: any) => {
-          utilizationMap[item.slotId] = item.utilization;
-        });
-        setUtilization(utilizationMap);
-      }
+      const { data, error } = await supabase
+        .from('delivery_slot_templates')
+        .select('*')
+        .order('start_time');
+
+      if (error) throw error;
+      setTemplates(data || []);
     } catch (error) {
-      console.error('Failed to load utilization:', error);
+      console.error('Error loading templates:', error);
+      Alert.alert('Error', 'Failed to load slot templates');
+    } finally {
+      setLoading(false);
     }
-  }, [dispatch, selectedDate]);
+  }, []);
+
+  const loadInstances = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('delivery_slot_instances')
+        .select('*')
+        .eq('slot_type', activeTab)
+        .order('slot_date');
+
+      if (error) throw error;
+      setInstances(data || []);
+    } catch (error) {
+      console.error('Error loading instances:', error);
+    }
+  }, [activeTab]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadSlots(), loadUtilization()]);
+    await Promise.all([loadTemplates(), loadInstances()]);
     setRefreshing(false);
-  }, [loadSlots, loadUtilization]);
+  }, [loadTemplates, loadInstances]);
 
   const resetForm = () => {
     setFormData({
-      date: selectedDate,
-      timeFrom: '09:00',
-      timeTo: '12:00',
-      capacity: '50',
-      charge: '0',
-      type: 'morning',
-      available: true,
+      slot_type: activeTab,
+      start_time: '09:00',
+      end_time: '12:00',
+      max_orders: '50',
+      repeat_weekly: true,
+      repeat_end_date: '',
     });
+    setSelectedTemplate(null);
   };
 
   const handleAddSlot = () => {
-    setShowAddModal(true);
     resetForm();
+    setFormData(prev => ({ ...prev, slot_type: activeTab }));
+    setShowAddModal(true);
   };
 
-  const handleEditSlot = (slot: DeliverySlot) => {
-    setSelectedSlot(slot);
-    const [timeFrom, timeTo] = slot.time.split(' - ');
+  const handleEditSlot = (template: SlotTemplate) => {
+    setSelectedTemplate(template);
     setFormData({
-      date: slot.date,
-      timeFrom: timeFrom || '09:00',
-      timeTo: timeTo || '12:00',
-      capacity: slot.capacity.toString(),
-      charge: slot.charge.toString(),
-      type: slot.type,
-      available: slot.available,
+      slot_type: template.slot_type,
+      start_time: template.start_time,
+      end_time: template.end_time,
+      max_orders: template.max_orders.toString(),
+      repeat_weekly: template.repeat_weekly,
+      repeat_end_date: template.repeat_end_date || '',
     });
-    setShowEditModal(true);
+    setShowAddModal(true);
   };
 
-  const handleDeleteSlot = (slotId: string) => {
+  const handleDeleteSlot = (templateId: string) => {
     Alert.alert(
       'Delete Slot',
-      'Are you sure you want to delete this delivery slot?',
+      'Are you sure you want to delete this slot? All instances will be deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => dispatch(deleteDeliverySlot(slotId)),
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('delivery_slot_templates')
+                .delete()
+                .eq('id', templateId);
+
+              if (error) throw error;
+              loadTemplates();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete slot');
+            }
+          },
         },
       ]
     );
   };
 
   const handleSubmit = async () => {
-    if (!formData.timeFrom || !formData.timeTo || !formData.capacity) {
+    if (!formData.start_time || !formData.end_time || !formData.max_orders) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
 
-    const slotData = {
-      date: formData.date,
-      time: `${formData.timeFrom} - ${formData.timeTo}`,
-      capacity: parseInt(formData.capacity),
-      charge: parseFloat(formData.charge),
-      type: formData.type,
-      available: formData.available,
-      bookedCount: 0,
-      estimatedDelivery: formData.type === 'express' ? 'Same day' : 'Next day',
-    };
-
     try {
-      if (selectedSlot) {
-        await dispatch(updateDeliverySlot({
-          id: selectedSlot.id,
-          updates: slotData,
-        }));
-        setShowEditModal(false);
+      if (selectedTemplate) {
+        // Update existing template
+        const { error } = await supabase
+          .from('delivery_slot_templates')
+          .update({
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            max_orders: parseInt(formData.max_orders),
+            repeat_weekly: formData.repeat_weekly,
+            repeat_end_date: formData.repeat_end_date || null,
+          })
+          .eq('id', selectedTemplate.id);
+
+        if (error) throw error;
       } else {
-        await dispatch(createDeliverySlot(slotData));
-        setShowAddModal(false);
+        // Create new template
+        const { error } = await supabase
+          .from('delivery_slot_templates')
+          .insert([{
+            slot_type: formData.slot_type,
+            start_time: formData.start_time,
+            end_time: formData.end_time,
+            max_orders: parseInt(formData.max_orders),
+            repeat_weekly: formData.repeat_weekly,
+            repeat_end_date: formData.repeat_end_date || null,
+          }]);
+
+        if (error) throw error;
       }
+
+      setShowAddModal(false);
       resetForm();
-      setSelectedSlot(null);
-      loadSlots();
+      loadTemplates();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save delivery slot');
+      console.error('Error saving slot:', error);
+      Alert.alert('Error', 'Failed to save slot');
     }
   };
 
-  const getUtilizationColor = (utilization: number) => {
-    if (utilization >= 90) return '#F44336';
-    if (utilization >= 70) return '#FF9800';
-    if (utilization >= 50) return '#4CAF50';
-    return '#2196F3';
+  const handleToggleActive = async (template: SlotTemplate) => {
+    try {
+      const { error } = await supabase
+        .from('delivery_slot_templates')
+        .update({ is_active: !template.is_active })
+        .eq('id', template.id);
+
+      if (error) throw error;
+      loadTemplates();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update slot');
+    }
   };
 
-  const renderSlotCard = (slot: DeliverySlot) => {
-    const slotUtilization = utilization[slot.id] || (slot.bookedCount / slot.capacity) * 100;
-    const utilizationColor = getUtilizationColor(slotUtilization);
-
-    return (
-      <View key={slot.id} style={styles.slotCard}>
-        <View style={styles.slotHeader}>
-          <View style={styles.slotType}>
-            <Text style={[styles.slotTypeText, { color: utilizationColor }]}>
-              {slot.type.toUpperCase()}
-            </Text>
-            {!slot.available && (
-              <View style={styles.inactiveBadge}>
-                <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.slotActions}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleEditSlot(slot)}
-            >
-              <Icon name="edit" size={20} color="#2196F3" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleDeleteSlot(slot.id)}
-            >
-              <Icon name="delete" size={20} color="#F44336" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.slotInfo}>
-          <Text style={styles.slotTime}>{slot.time}</Text>
-          {slot.charge > 0 && (
-            <Text style={styles.slotPrice}>₹{slot.charge}</Text>
-          )}
-        </View>
-
-        <View style={styles.capacityInfo}>
-          <View style={styles.capacityBar}>
-            <View
-              style={[
-                styles.capacityFill,
-                {
-                  width: `${slotUtilization}%`,
-                  backgroundColor: utilizationColor,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.capacityText}>
-            {slot.bookedCount}/{slot.capacity} ({slotUtilization.toFixed(0)}%)
-          </Text>
-        </View>
-
-        <Text style={styles.slotDelivery}>
-          Estimated: {slot.estimatedDelivery}
-        </Text>
-      </View>
-    );
-  };
-
-  const renderModal = (isEdit: boolean) => (
-    <Modal
-      visible={isEdit ? showEditModal : showAddModal}
-      animationType="slide"
-      onRequestClose={() => {
-        isEdit ? setShowEditModal(false) : setShowAddModal(false);
-        resetForm();
-        setSelectedSlot(null);
-      }}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>
-            {isEdit ? 'Edit Delivery Slot' : 'Add New Delivery Slot'}
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              isEdit ? setShowEditModal(false) : setShowAddModal(false);
-              resetForm();
-              setSelectedSlot(null);
-            }}
-          >
-            <Icon name="close" size={24} color="#333" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.modalContent}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Date</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.date}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, date: text }))}
-              placeholder="YYYY-MM-DD"
-            />
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={styles.formGroupHalf}>
-              <Text style={styles.label}>From Time</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.timeFrom}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, timeFrom: text }))}
-                placeholder="HH:MM"
-              />
-            </View>
-            <View style={styles.formGroupHalf}>
-              <Text style={styles.label}>To Time</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.timeTo}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, timeTo: text }))}
-                placeholder="HH:MM"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formRow}>
-            <View style={styles.formGroupHalf}>
-              <Text style={styles.label}>Capacity</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.capacity}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, capacity: text }))}
-                placeholder="50"
-                keyboardType="numeric"
-              />
-            </View>
-            <View style={styles.formGroupHalf}>
-              <Text style={styles.label}>Charge (₹)</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.charge}
-                onChangeText={(text) => setFormData(prev => ({ ...prev, charge: text }))}
-                placeholder="0"
-                keyboardType="numeric"
-              />
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Slot Type</Text>
-            <View style={styles.typeSelector}>
-              {(['morning', 'evening', 'express'] as const).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeOption,
-                    formData.type === type && styles.typeOptionActive,
-                  ]}
-                  onPress={() => setFormData(prev => ({ ...prev, type }))}
-                >
-                  <Text
-                    style={[
-                      styles.typeOptionText,
-                      formData.type === type && styles.typeOptionTextActive,
-                    ]}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.formGroup}>
-            <View style={styles.switchRow}>
-              <Text style={styles.label}>Available</Text>
-              <Switch
-                value={formData.available}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, available: value }))}
-                trackColor={{ false: '#ccc', true: '#4CAF50' }}
-                thumbColor={formData.available ? '#fff' : '#fff'}
-              />
-            </View>
-          </View>
-        </ScrollView>
-
-        <View style={styles.modalFooter}>
-          <TouchableOpacity
-            style={[styles.button, styles.cancelButton]}
-            onPress={() => {
-              isEdit ? setShowEditModal(false) : setShowAddModal(false);
-              resetForm();
-              setSelectedSlot(null);
-            }}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.saveButton]}
-            onPress={handleSubmit}
-          >
-            <Text style={styles.saveButtonText}>
-              {isEdit ? 'Update' : 'Create'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const todaySlots = deliverySlots.filter((slot: DeliverySlot) => slot.date === selectedDate);
-  const morningSlots = todaySlots.filter((slot: DeliverySlot) => slot.type === 'morning');
-  const eveningSlots = todaySlots.filter((slot: DeliverySlot) => slot.type === 'evening');
-  const expressSlots = todaySlots.filter((slot: DeliverySlot) => slot.type === 'express');
+  const filteredTemplates = templates.filter(t => t.slot_type === activeTab);
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Delivery Slot Management</Text>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => (navigation as any)?.goBack?.()}
+        >
+          <Icon name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Delivery Slots</Text>
+        </View>
         <TouchableOpacity style={styles.addButton} onPress={handleAddSlot}>
           <Icon name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Calendar */}
-      <View style={styles.calendarContainer}>
-        <Calendar
-          current={selectedDate}
-          onDayPress={(day) => setSelectedDate(day.dateString)}
-          markedDates={{
-            [selectedDate]: {
-              selected: true,
-              selectedColor: '#4CAF50',
-            },
-          }}
-          theme={{
-            selectedDayBackgroundColor: '#4CAF50',
-            todayTextColor: '#4CAF50',
-            arrowColor: '#4CAF50',
-          }}
-        />
+      {/* Tabs */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'weekday' && styles.tabActive]}
+          onPress={() => setActiveTab('weekday')}
+        >
+          <Text style={[styles.tabText, activeTab === 'weekday' && styles.tabTextActive]}>
+            Weekday Slots
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'weekend' && styles.tabActive]}
+          onPress={() => setActiveTab('weekend')}
+        >
+          <Text style={[styles.tabText, activeTab === 'weekend' && styles.tabTextActive]}>
+            Weekend Slots
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Overall Statistics */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.statsTitle}>
-          Slots for {new Date(selectedDate).toLocaleDateString()}
-        </Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{morningSlots.length}</Text>
-            <Text style={styles.statLabel}>Morning</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{eveningSlots.length}</Text>
-            <Text style={styles.statLabel}>Evening</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{expressSlots.length}</Text>
-            <Text style={styles.statLabel}>Express</Text>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView 
-        style={styles.slotsContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+      <ScrollView
+        style={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Morning Slots */}
-        {morningSlots.length > 0 && (
-          <View style={styles.slotSection}>
-            <Text style={styles.sectionTitle}>Morning Slots</Text>
-            {morningSlots.map(renderSlotCard)}
-          </View>
-        )}
-
-        {/* Evening Slots */}
-        {eveningSlots.length > 0 && (
-          <View style={styles.slotSection}>
-            <Text style={styles.sectionTitle}>Evening Slots</Text>
-            {eveningSlots.map(renderSlotCard)}
-          </View>
-        )}
-
-        {/* Express Slots */}
-        {expressSlots.length > 0 && (
-          <View style={styles.slotSection}>
-            <Text style={styles.sectionTitle}>Express Slots</Text>
-            {expressSlots.map(renderSlotCard)}
-          </View>
-        )}
-
-        {todaySlots.length === 0 && !deliverySlotsLoading && (
+        {loading ? (
+          <ActivityIndicator size="large" color="#4CAF50" />
+        ) : filteredTemplates.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Icon name="schedule" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No slots scheduled for this date</Text>
+            <Text style={styles.emptyText}>No {activeTab} slots configured</Text>
             <TouchableOpacity style={styles.emptyButton} onPress={handleAddSlot}>
               <Text style={styles.emptyButtonText}>Add First Slot</Text>
             </TouchableOpacity>
           </View>
-        )}
+        ) : (
+          filteredTemplates.map((template) => (
+            <View key={template.id} style={styles.slotCard}>
+              <View style={styles.slotHeader}>
+                <View style={styles.slotType}>
+                  <Text style={styles.slotTypeText}>
+                    {template.start_time} - {template.end_time}
+                  </Text>
+                  {!template.is_active && (
+                    <View style={styles.inactiveBadge}>
+                      <Text style={styles.inactiveBadgeText}>PAUSED</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.slotActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleEditSlot(template)}
+                  >
+                    <Icon name="edit" size={20} color="#2196F3" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleToggleActive(template)}
+                  >
+                    <Icon
+                      name={template.is_active ? 'pause' : 'play-arrow'}
+                      size={20}
+                      color={template.is_active ? '#FF9800' : '#4CAF50'}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => handleDeleteSlot(template.id)}
+                  >
+                    <Icon name="delete" size={20} color="#F44336" />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-        {deliverySlotsLoading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Loading slots...</Text>
-          </View>
+              <View style={styles.slotInfo}>
+                <Text style={styles.slotDetail}>Max Orders: {template.max_orders}</Text>
+                <Text style={styles.slotDetail}>
+                  Repeat Weekly: {template.repeat_weekly ? 'Yes' : 'No'}
+                </Text>
+                {template.repeat_end_date && (
+                  <Text style={styles.slotDetail}>
+                    End Date: {new Date(template.repeat_end_date).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))
         )}
       </ScrollView>
 
-      {/* Add/Edit Slot Modal */}
-      {renderModal(false)}
-      {renderModal(true)}
+      {/* Add/Edit Modal */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowAddModal(false);
+          resetForm();
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              {selectedTemplate ? 'Edit Slot' : 'Add New Slot'}
+            </Text>
+            <TouchableOpacity onPress={() => { setShowAddModal(false); resetForm(); }}>
+              <Icon name="close" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Slot Type</Text>
+              <View style={styles.typeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.typeOption,
+                    formData.slot_type === 'weekday' && styles.typeOptionActive,
+                  ]}
+                  onPress={() => setFormData(prev => ({ ...prev, slot_type: 'weekday' }))}
+                >
+                  <Text
+                    style={[
+                      styles.typeOptionText,
+                      formData.slot_type === 'weekday' && styles.typeOptionTextActive,
+                    ]}
+                  >
+                    Weekday
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.typeOption,
+                    formData.slot_type === 'weekend' && styles.typeOptionActive,
+                  ]}
+                  onPress={() => setFormData(prev => ({ ...prev, slot_type: 'weekend' }))}
+                >
+                  <Text
+                    style={[
+                      styles.typeOptionText,
+                      formData.slot_type === 'weekend' && styles.typeOptionTextActive,
+                    ]}
+                  >
+                    Weekend
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={styles.formGroupHalf}>
+                <Text style={styles.label}>Start Time</Text>
+                <TouchableOpacity
+                  style={styles.input}
+                  onPress={() => setShowStartTimePicker(true)}
+                >
+                  <Text style={styles.inputText}>{formData.start_time || 'Select Time'}</Text>
+                  <Icon name="access-time" size={20} color="#666" />
+                </TouchableOpacity>
+                {showStartTimePicker && Platform.OS !== 'web' && (
+                  <DateTimePicker
+                    value={startTime}
+                    mode="time"
+                    is24Hour={false}
+                    display="default"
+                    onChange={(event, selectedTime) => {
+                      setShowStartTimePicker(Platform.OS === 'ios');
+                      if (selectedTime && event.type !== 'dismissed') {
+                        setStartTime(selectedTime);
+                        const hours = selectedTime.getHours().toString().padStart(2, '0');
+                        const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+                        setFormData(prev => ({ ...prev, start_time: `${hours}:${minutes}` }));
+                      }
+                    }}
+                  />
+                )}
+                {showStartTimePicker && Platform.OS === 'web' && (
+                  <input
+                    type="time"
+                    value={formData.start_time}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, start_time: e.target.value }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '16px',
+                    }}
+                  />
+                )}
+              </View>
+              <View style={styles.formGroupHalf}>
+                <Text style={styles.label}>End Time</Text>
+                <TouchableOpacity
+                  style={styles.input}
+                  onPress={() => setShowEndTimePicker(true)}
+                >
+                  <Text style={styles.inputText}>{formData.end_time || 'Select Time'}</Text>
+                  <Icon name="access-time" size={20} color="#666" />
+                </TouchableOpacity>
+                {showEndTimePicker && Platform.OS !== 'web' && (
+                  <DateTimePicker
+                    value={endTime}
+                    mode="time"
+                    is24Hour={false}
+                    display="default"
+                    onChange={(event, selectedTime) => {
+                      setShowEndTimePicker(Platform.OS === 'ios');
+                      if (selectedTime && event.type !== 'dismissed') {
+                        setEndTime(selectedTime);
+                        const hours = selectedTime.getHours().toString().padStart(2, '0');
+                        const minutes = selectedTime.getMinutes().toString().padStart(2, '0');
+                        setFormData(prev => ({ ...prev, end_time: `${hours}:${minutes}` }));
+                      }
+                    }}
+                  />
+                )}
+                {showEndTimePicker && Platform.OS === 'web' && (
+                  <input
+                    type="time"
+                    value={formData.end_time}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, end_time: e.target.value }));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '16px',
+                    }}
+                  />
+                )}
+              </View>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Max Orders</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.max_orders}
+                onChangeText={(text) => setFormData(prev => ({ ...prev, max_orders: text }))}
+                placeholder="50"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <View style={styles.switchRow}>
+                <Text style={styles.label}>Repeat Weekly</Text>
+                <Switch
+                  value={formData.repeat_weekly}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, repeat_weekly: value }))}
+                  trackColor={{ false: '#ccc', true: '#4CAF50' }}
+                />
+              </View>
+            </View>
+
+            {formData.repeat_weekly && (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>End Date (Optional)</Text>
+                <TouchableOpacity
+                  style={styles.input}
+                  onPress={() => setShowEndDatePicker(true)}
+                >
+                  <Text style={styles.inputText}>
+                    {formData.repeat_end_date || 'Select Date'}
+                  </Text>
+                  <Icon name="calendar-today" size={20} color="#666" />
+                </TouchableOpacity>
+                {showEndDatePicker && Platform.OS !== 'web' && (
+                  <DateTimePicker
+                    value={endDate}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowEndDatePicker(Platform.OS === 'ios');
+                      if (selectedDate && event.type !== 'dismissed') {
+                        setEndDate(selectedDate);
+                        const year = selectedDate.getFullYear();
+                        const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+                        const day = selectedDate.getDate().toString().padStart(2, '0');
+                        setFormData(prev => ({ ...prev, repeat_end_date: `${year}-${month}-${day}` }));
+                      }
+                    }}
+                    minimumDate={new Date()}
+                  />
+                )}
+                {showEndDatePicker && Platform.OS === 'web' && (
+                  <input
+                    type="date"
+                    value={formData.repeat_end_date}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, repeat_end_date: e.target.value }));
+                    }}
+                    min={new Date().toISOString().split('T')[0]}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '16px',
+                    }}
+                  />
+                )}
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={() => { setShowAddModal(false); resetForm(); }}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSubmit}>
+              <Text style={styles.saveButtonText}>
+                {selectedTemplate ? 'Update' : 'Create'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -501,168 +596,61 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
-    elevation: 2,
+    backgroundColor: '#4CAF50',
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
   },
   addButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 28,
-    width: 56,
-    height: 56,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  calendarContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsContainer: {
-    backgroundColor: '#fff',
-    margin: 16,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  statsRow: {
+  tabContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statCard: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  slotsContainer: {
-    flex: 1,
+    backgroundColor: '#fff',
     paddingHorizontal: 16,
   },
-  slotSection: {
-    marginBottom: 20,
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
+  tabActive: {
+    borderBottomColor: '#4CAF50',
   },
-  slotCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  slotHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  slotType: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  slotTypeText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  inactiveBadge: {
-    backgroundColor: '#F44336',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  inactiveBadgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  slotActions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  slotInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  slotTime: {
+  tabText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
+    textAlign: 'center',
+    color: '#666',
   },
-  slotPrice: {
-    fontSize: 14,
+  tabTextActive: {
     color: '#4CAF50',
     fontWeight: 'bold',
   },
-  capacityInfo: {
-    marginBottom: 8,
-  },
-  capacityBar: {
-    height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    marginBottom: 4,
-  },
-  capacityFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  capacityText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  slotDelivery: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
+  content: {
+    flex: 1,
+    padding: 16,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -686,15 +674,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+  slotCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  loadingText: {
+  slotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  slotType: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  slotTypeText: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  inactiveBadge: {
+    backgroundColor: '#F44336',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  inactiveBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  slotActions: {
+    flexDirection: 'row',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  slotInfo: {
+    gap: 4,
+  },
+  slotDetail: {
+    fontSize: 14,
     color: '#666',
-    marginTop: 12,
   },
   modalContainer: {
     flex: 1,
@@ -741,13 +771,20 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inputText: {
+    fontSize: 16,
+    color: '#333',
   },
   typeSelector: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   typeOption: {
-    flex: 0.3,
+    flex: 0.48,
     padding: 12,
     borderWidth: 1,
     borderColor: '#ddd',
@@ -805,3 +842,4 @@ const styles = StyleSheet.create({
 });
 
 export default SlotManagementScreen;
+

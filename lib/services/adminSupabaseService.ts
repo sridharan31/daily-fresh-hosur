@@ -31,7 +31,7 @@ export class AdminSupabaseService {
       // Fetch products
       const { data: products, error: productsError } = await supabase
         .from('products')
-        .select('id, name, stock_quantity, min_stock_level');
+        .select('id, name_en, stock_quantity');
 
       if (productsError) throw productsError;
 
@@ -55,7 +55,7 @@ export class AdminSupabaseService {
         new Date(user.last_sign_in_at) >= startDate).length || 0;
       
       const lowStockItems = products?.filter(product => 
-        (product.stock_quantity || 0) <= (product.min_stock_level || 5)).length || 0;
+        (product.stock_quantity || 0) <= 5).length || 0;
 
       // Generate mock chart data (in a real app, this would come from analytics)
       const chartLabels = period === 'month' 
@@ -72,19 +72,26 @@ export class AdminSupabaseService {
         orders: {
           total: totalOrders,
           pending: pendingOrders,
+          processing: processingOrders,
+          delivered: deliveredOrders,
+          cancelled: cancelledOrders,
           todayOrders: totalOrders,
         },
         revenue: {
           total: totalRevenue,
           today: totalRevenue,
+          thisWeek: totalRevenue,
+          thisMonth: totalRevenue,
         },
         users: {
           active: activeUsers,
           total: users?.length || 0,
+          new: users?.length || 0,
         },
         products: {
           total: products?.length || 0,
           lowStock: lowStockItems,
+          outOfStock: 0,
         },
         orderStatus: {
           pending: pendingOrders,
@@ -122,7 +129,7 @@ export class AdminSupabaseService {
         .from('orders')
         .select(`
           *,
-          user:users(id, first_name, last_name, email),
+          user:users(id, full_name, email),
           order_items(*)
         `);
 
@@ -146,21 +153,31 @@ export class AdminSupabaseService {
 
       const adminOrders: AdminOrder[] = orders?.map(order => ({
         id: order.id,
-        orderNumber: order.order_number || `#${order.id.slice(0, 8)}`,
-        customerId: order.user_id,
-        customerName: order.user ? `${order.user.first_name} ${order.user.last_name}` : 'Unknown',
-        customerEmail: order.user?.email || '',
-        status: order.status,
+        userId: order.user_id,
+        items: order.order_items || [],
         totalAmount: order.total_amount,
-        itemCount: order.order_items?.length || 0,
+        discount: order.discount || 0,
+        deliveryCharge: order.delivery_charge || 0,
+        finalAmount: order.final_amount || order.total_amount,
+        status: order.status,
+        paymentStatus: order.payment_status,
+        deliverySlot: order.delivery_slot || {},
+        deliveryAddress: order.delivery_address || {} as any,
+        estimatedDelivery: order.delivery_date || order.estimated_delivery || '',
         createdAt: order.created_at,
         updatedAt: order.updated_at,
+        // AdminOrder specific fields
+        orderNumber: order.order_number || `#${order.id.slice(0, 8)}`,
+        customerId: order.user_id,
+        customerName: order.user?.full_name || 'Unknown',
+        customerEmail: order.user?.email || '',
+        customerPhone: '',
+        lastStatusUpdate: order.updated_at,
         deliveryDate: order.delivery_date,
-        deliverySlot: order.delivery_slot,
-        paymentStatus: order.payment_status,
         paymentMethod: order.payment_method,
         notes: order.notes,
-        items: order.order_items || [],
+        itemCount: order.order_items?.length || 0,
+        total: order.total_amount,
       })) || [];
 
       return {
@@ -189,7 +206,7 @@ export class AdminSupabaseService {
         `);
 
       if (filters.searchTerm) {
-        query = query.or(`first_name.ilike.%${filters.searchTerm}%,last_name.ilike.%${filters.searchTerm}%,email.ilike.%${filters.searchTerm}%`);
+        query = query.or(`full_name.ilike.%${filters.searchTerm}%,email.ilike.%${filters.searchTerm}%`);
       }
 
       const { data: users, error } = await query
@@ -200,11 +217,14 @@ export class AdminSupabaseService {
 
       const adminCustomers: AdminCustomer[] = users?.map(user => ({
         id: user.id,
-        name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-        firstName: user.first_name || '',
-        lastName: user.last_name || '',
+        name: user.full_name || '',
+        firstName: user.full_name?.split(' ')[0] || '',
+        lastName: user.full_name?.split(' ').slice(1).join(' ') || '',
         email: user.email,
-        phone: user.phone,
+        phone: user.phone || '',
+        role: user.role || 'customer',
+        isEmailVerified: user.is_verified || false,
+        isPhoneVerified: !!user.phone,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
         totalOrders: user.orders?.length || 0,
@@ -213,7 +233,7 @@ export class AdminSupabaseService {
           (user.orders.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) / user.orders.length) : 0,
         loyaltyPoints: 0,
         registrationSource: 'web',
-        segment: user.orders?.length > 5 ? 'loyal' : user.orders?.length > 0 ? 'regular' : 'new',
+        segment: user.orders?.length > 5 ? 'vip' : user.orders?.length > 0 ? 'regular' : 'new',
         isActive: user.last_sign_in_at && 
           new Date(user.last_sign_in_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
       })) || [];
@@ -241,7 +261,7 @@ export class AdminSupabaseService {
         .select('*');
 
       if (filters.search) {
-        query = query.ilike('name', `%${filters.search}%`);
+        query = query.ilike('name_en', `%${filters.search}%`);
       }
 
       if (filters.status) {
@@ -273,31 +293,45 @@ export class AdminSupabaseService {
   async getAnalytics(params: { dateRange: { from: string; to: string }; type: string }): Promise<AdminAnalytics> {
     try {
       // This would be replaced with real analytics queries
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('total_amount, created_at')
+        .gte('created_at', params.dateRange.from)
+        .lte('created_at', params.dateRange.to);
+
+      const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
+      const totalOrders = orders?.length || 0;
+      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
       return {
-        totalRevenue: 125000,
-        totalOrders: 450,
-        averageOrderValue: 278,
-        conversionRate: 3.2,
-        revenueGrowth: 12.5,
-        orderGrowth: 8.3,
-        customerGrowth: 15.2,
-        revenueByPeriod: [
-          { period: '2024-01', revenue: 45000 },
-          { period: '2024-02', revenue: 52000 },
-          { period: '2024-03', revenue: 48000 },
-          { period: '2024-04', revenue: 55000 },
-        ],
-        topCategories: [
-          { category: 'Vegetables', revenue: 35000, percentage: 28 },
-          { category: 'Fruits', revenue: 28000, percentage: 22.4 },
-          { category: 'Dairy', revenue: 22000, percentage: 17.6 },
-          { category: 'Grains', revenue: 18000, percentage: 14.4 },
-        ],
-        customerSegments: [
-          { segment: 'New', count: 120, percentage: 35 },
-          { segment: 'Regular', count: 150, percentage: 44 },
-          { segment: 'VIP', count: 72, percentage: 21 },
-        ],
+        salesData: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr'],
+          datasets: [
+            { label: 'Revenue', data: [45000, 52000, 48000, 55000], color: '#4CAF50' },
+          ],
+        },
+        customerData: {
+          newCustomers: 120,
+          returningCustomers: 150,
+          churnRate: 2.5,
+          acquisitionRate: 15.2,
+        },
+        productPerformance: {
+          topProducts: [
+            { id: '1', name: 'Vegetables', sales: 350, revenue: 35000 },
+            { id: '2', name: 'Fruits', sales: 280, revenue: 28000 },
+          ],
+          categories: [
+            { name: 'Vegetables', sales: 35000, percentage: 28 },
+            { name: 'Fruits', sales: 28000, percentage: 22.4 },
+          ],
+        },
+        revenueMetrics: {
+          totalRevenue,
+          averageOrderValue,
+          revenueGrowth: 12.5,
+          monthlyRevenue: [45000, 52000, 48000, 55000],
+        },
       };
     } catch (error) {
       console.error('Error fetching analytics:', error);

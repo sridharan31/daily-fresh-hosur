@@ -1,12 +1,12 @@
  // app/components/cart/CartSummary.tsx
 import React from 'react';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 import {
   StyleSheet,
   Text,
   TouchableOpacity,
   View
-} from 'react-native-web';
+} from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
 import { CartState } from '../../../lib/types/cart';
 import Config from '../../config/environment';
