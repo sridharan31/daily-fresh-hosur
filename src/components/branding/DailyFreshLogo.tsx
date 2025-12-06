@@ -14,7 +14,7 @@ export const DailyFreshLogo: React.FC<DailyFreshLogoProps> = ({
   showText = true,
   variant = 'full'
 }) => {
-  const logoSource = require('../../../assets/branding/Fresh_From_Hosur_Farms.png');
+  const logoSource = require('../../../assets/branding/Fresh_From_Hosur_Farms.svg');
 
   if (variant === 'icon') {
     // For icon variant, show a square/circular version

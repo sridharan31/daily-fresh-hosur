@@ -154,7 +154,7 @@ const Header: React.FC<HeaderProps> = ({
           {title === "Daily Fresh Hosur" ? (
             <div style={logoStyle}>
               <img
-                src={require('../../../assets/branding/Fresh_From_Hosur_Farms.png')}
+                src={require('../../../assets/branding/Fresh_From_Hosur_Farms.svg')}
                 alt="Fresh From Hosur Farms"
                 style={{ height: 40, objectFit: 'contain' }}
               />

@@ -1,113 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '../../../lib/supabase/store';
 import {
-    createAdminUser,
-    deleteAdminUser,
-    fetchAdminRoles,
-    fetchAdminUsers,
-    updateAdminUser,
+  createAdminUser,
+  deleteAdminUser,
+  fetchAdminRoles,
+  fetchAdminUsers,
+  updateAdminUser,
 } from '../../../lib/supabase/store/actions/adminUserActions';
 import { RootState } from '../../../lib/supabase/store/rootReducer';
-import { ADMIN_ROLES, AdminRole, AdminUserWithRole, hasPermission } from '../../../lib/types/adminRoles';
+import { ADMIN_ROLES, AdminUserWithRole, hasPermission } from '../../../lib/types/adminRoles';
 import PermissionGate from '../../components/admin/PermissionGate';
-
-// Mock data for admin users
-const MOCK_ADMIN_USERS: AdminUserWithRole[] = [
-  {
-    id: '1',
-    email: 'admin@dailyfreshhosur.com',
-    firstName: 'Admin',
-    lastName: 'User',
-    role: ADMIN_ROLES.find(role => role.type === 'super_admin') as AdminRole,
-    isActive: true,
-    lastLogin: '2025-10-15T08:30:00.000Z',
-    createdAt: '2025-01-01T00:00:00.000Z',
-  },
-  {
-    id: '2',
-    email: 'manager@dailyfreshhosur.com',
-    firstName: 'Store',
-    lastName: 'Manager',
-    role: ADMIN_ROLES.find(role => role.type === 'manager') as AdminRole,
-    isActive: true,
-    lastLogin: '2025-10-17T14:45:00.000Z',
-    createdAt: '2025-03-15T00:00:00.000Z',
-  },
-  {
-    id: '3',
-    email: 'content@dailyfreshhosur.com',
-    firstName: 'Content',
-    lastName: 'Editor',
-    role: ADMIN_ROLES.find(role => role.type === 'content_editor') as AdminRole,
-    isActive: true,
-    lastLogin: '2025-10-16T11:20:00.000Z',
-    createdAt: '2025-05-10T00:00:00.000Z',
-  },
-  {
-    id: '4',
-    email: 'sales@dailyfreshhosur.com',
-    firstName: 'Sales',
-    lastName: 'Representative',
-    role: ADMIN_ROLES.find(role => role.type === 'sales_agent') as AdminRole,
-    isActive: false,
-    lastLogin: '2025-09-28T09:15:00.000Z',
-    createdAt: '2025-06-20T00:00:00.000Z',
-  },
-  {
-    id: '5',
-    email: 'support@dailyfreshhosur.com',
-    firstName: 'Customer',
-    lastName: 'Support',
-    role: ADMIN_ROLES.find(role => role.type === 'support_staff') as AdminRole,
-    isActive: true,
-    lastLogin: '2025-10-18T10:05:00.000Z',
-    createdAt: '2025-07-05T00:00:00.000Z',
-  },
-];
 
 const UserManagementScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { adminUsers, currentUser, loading } = useSelector((state: RootState) => state.admin);
-  
-  const [users, setUsers] = useState<AdminUserWithRole[]>([]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<AdminUserWithRole | null>(null);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Fetch admin users when component mounts
-  useEffect(() => {
-    dispatch(fetchAdminUsers());
-    dispatch(fetchAdminRoles());
-  }, [dispatch]);
-  
+
   // Fetch admin users when component mounts
   useEffect(() => {
     dispatch(fetchAdminUsers());
     dispatch(fetchAdminRoles());
   }, [dispatch]);
 
-  // Update local state when adminUsers changes in Redux store
-  useEffect(() => {
-    setUsers(adminUsers);
-  }, [adminUsers]);
-  
   // New user form state
   const [newUser, setNewUser] = useState({
     email: '',
@@ -116,33 +50,33 @@ const UserManagementScreen: React.FC = () => {
     roleId: 'manager',
     isActive: true,
   });
-  
+
   // Check if current user has permission to manage users
   const canManageUsers = currentUser ? hasPermission(currentUser, 'users_manage') : false;
-  
-  // Filter users based on search query
-  const filteredUsers = users.filter(user => 
+
+  // Filter users based on search query - use adminUsers from Redux directly
+  const filteredUsers = adminUsers.filter(user =>
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.role.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  
+
   const handleAddUser = async () => {
     if (!canManageUsers) {
       Alert.alert('Permission Denied', 'You do not have permission to add users.');
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     // Validate form
     if (!newUser.email || !newUser.firstName || !newUser.lastName) {
       Alert.alert('Validation Error', 'Please fill in all required fields.');
       setIsLoading(false);
       return;
     }
-    
+
     try {
       // Use Redux action to create user
       const resultAction = await dispatch(createAdminUser({
@@ -152,7 +86,7 @@ const UserManagementScreen: React.FC = () => {
         roleId: newUser.roleId,
         isActive: newUser.isActive,
       }));
-      
+
       if (createAdminUser.fulfilled.match(resultAction)) {
         // Reset form
         setNewUser({
@@ -173,16 +107,16 @@ const UserManagementScreen: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
+
   const handleToggleUserStatus = async (userId: string) => {
     if (!canManageUsers) {
       Alert.alert('Permission Denied', 'You do not have permission to modify users.');
       return;
     }
-    
-    const user = users.find(u => u.id === userId);
+
+    const user = adminUsers.find(u => u.id === userId);
     if (!user) return;
-    
+
     try {
       await dispatch(updateAdminUser({
         userId,
@@ -194,14 +128,14 @@ const UserManagementScreen: React.FC = () => {
       Alert.alert('Error', 'Failed to update user status.');
     }
   };
-  
+
   const handleEditUser = async () => {
     if (!canManageUsers || !selectedUser) {
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     try {
       // Use Redux action to update user
       const resultAction = await dispatch(updateAdminUser({
@@ -213,7 +147,7 @@ const UserManagementScreen: React.FC = () => {
           isActive: selectedUser.isActive,
         },
       }));
-      
+
       if (updateAdminUser.fulfilled.match(resultAction)) {
         setIsEditModalVisible(false);
         setSelectedUser(null);
@@ -227,20 +161,20 @@ const UserManagementScreen: React.FC = () => {
       setIsLoading(false);
     }
   };
-  
+
   const handleDeleteUser = (userId: string) => {
     if (!canManageUsers) {
       Alert.alert('Permission Denied', 'You do not have permission to delete users.');
       return;
     }
-    
+
     Alert.alert(
       'Delete User',
       'Are you sure you want to delete this user? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -253,14 +187,14 @@ const UserManagementScreen: React.FC = () => {
       ]
     );
   };
-  
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never';
-    
+
     const date = new Date(dateString);
     return `${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`;
   };
-  
+
   const renderUserItem = ({ item }: { item: AdminUserWithRole }) => (
     <View style={styles.userItem}>
       <View style={styles.userInfo}>
@@ -275,7 +209,7 @@ const UserManagementScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.userActions}>
         <View style={styles.statusContainer}>
           <Text style={styles.statusLabel}>Active</Text>
@@ -285,11 +219,11 @@ const UserManagementScreen: React.FC = () => {
             disabled={!canManageUsers}
           />
         </View>
-        
+
         {currentUser && (
           <PermissionGate user={currentUser} permission="users_manage">
             <View style={styles.actionButtons}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => {
                   setSelectedUser(item);
@@ -298,8 +232,8 @@ const UserManagementScreen: React.FC = () => {
               >
                 <Icon name="edit" size={20} color="#2196F3" />
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={() => handleDeleteUser(item.id)}
               >
@@ -311,14 +245,14 @@ const UserManagementScreen: React.FC = () => {
       </View>
     </View>
   );
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>User Management</Text>
         {currentUser && (
           <PermissionGate user={currentUser} permission="users_manage">
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.addButton}
               onPress={() => setIsAddModalVisible(true)}
             >
@@ -327,14 +261,14 @@ const UserManagementScreen: React.FC = () => {
           </PermissionGate>
         )}
       </View>
-      
+
       <TextInput
         style={styles.searchInput}
         placeholder="Search users..."
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2196F3" />
@@ -351,7 +285,7 @@ const UserManagementScreen: React.FC = () => {
           }
         />
       )}
-      
+
       {/* Add User Modal */}
       <Modal
         visible={isAddModalVisible}
@@ -362,40 +296,40 @@ const UserManagementScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add New User</Text>
-            
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Email *</Text>
               <TextInput
                 style={styles.input}
                 value={newUser.email}
-                onChangeText={(text: string) => setNewUser({...newUser, email: text})}
+                onChangeText={(text: string) => setNewUser({ ...newUser, email: text })}
                 placeholder="Enter email address"
                 keyboardType="email-address"
               />
             </View>
-            
+
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
                 <Text style={styles.label}>First Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={newUser.firstName}
-                  onChangeText={(text: string) => setNewUser({...newUser, firstName: text})}
+                  onChangeText={(text: string) => setNewUser({ ...newUser, firstName: text })}
                   placeholder="First name"
                 />
               </View>
-              
+
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                 <Text style={styles.label}>Last Name *</Text>
                 <TextInput
                   style={styles.input}
                   value={newUser.lastName}
-                  onChangeText={(text: string) => setNewUser({...newUser, lastName: text})}
+                  onChangeText={(text: string) => setNewUser({ ...newUser, lastName: text })}
                   placeholder="Last name"
                 />
               </View>
             </View>
-            
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Role *</Text>
               <ScrollView style={styles.roleSelector} horizontal showsHorizontalScrollIndicator={false}>
@@ -406,7 +340,7 @@ const UserManagementScreen: React.FC = () => {
                       styles.roleOption,
                       newUser.roleId === role.id && styles.selectedRole
                     ]}
-                    onPress={() => setNewUser({...newUser, roleId: role.id})}
+                    onPress={() => setNewUser({ ...newUser, roleId: role.id })}
                   >
                     <Text style={[
                       styles.roleText,
@@ -418,20 +352,20 @@ const UserManagementScreen: React.FC = () => {
                 ))}
               </ScrollView>
             </View>
-            
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Status</Text>
               <View style={styles.statusToggle}>
                 <Text>Inactive</Text>
                 <Switch
                   value={newUser.isActive}
-                  onValueChange={(value: boolean) => setNewUser({...newUser, isActive: value})}
+                  onValueChange={(value: boolean) => setNewUser({ ...newUser, isActive: value })}
                   style={styles.switch}
                 />
                 <Text>Active</Text>
               </View>
             </View>
-            
+
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -439,7 +373,7 @@ const UserManagementScreen: React.FC = () => {
               >
                 <Text style={styles.buttonText}>Cancel</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={handleAddUser}
@@ -455,7 +389,7 @@ const UserManagementScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-      
+
       {/* Edit User Modal */}
       <Modal
         visible={isEditModalVisible && selectedUser !== null}
@@ -467,7 +401,7 @@ const UserManagementScreen: React.FC = () => {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Edit User</Text>
-              
+
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Email</Text>
                 <TextInput
@@ -476,27 +410,27 @@ const UserManagementScreen: React.FC = () => {
                   editable={false}
                 />
               </View>
-              
+
               <View style={styles.formRow}>
                 <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.label}>First Name</Text>
                   <TextInput
                     style={styles.input}
                     value={selectedUser.firstName}
-                    onChangeText={(text: string) => setSelectedUser({...selectedUser, firstName: text})}
+                    onChangeText={(text: string) => setSelectedUser({ ...selectedUser, firstName: text })}
                   />
                 </View>
-                
+
                 <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
                   <Text style={styles.label}>Last Name</Text>
                   <TextInput
                     style={styles.input}
                     value={selectedUser.lastName}
-                    onChangeText={(text: string) => setSelectedUser({...selectedUser, lastName: text})}
+                    onChangeText={(text: string) => setSelectedUser({ ...selectedUser, lastName: text })}
                   />
                 </View>
               </View>
-              
+
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Role</Text>
                 <ScrollView style={styles.roleSelector} horizontal showsHorizontalScrollIndicator={false}>
@@ -522,20 +456,20 @@ const UserManagementScreen: React.FC = () => {
                   ))}
                 </ScrollView>
               </View>
-              
+
               <View style={styles.formGroup}>
                 <Text style={styles.label}>Status</Text>
                 <View style={styles.statusToggle}>
                   <Text>Inactive</Text>
                   <Switch
                     value={selectedUser.isActive}
-                    onValueChange={(value: boolean) => setSelectedUser({...selectedUser, isActive: value})}
+                    onValueChange={(value: boolean) => setSelectedUser({ ...selectedUser, isActive: value })}
                     style={styles.switch}
                   />
                   <Text>Active</Text>
                 </View>
               </View>
-              
+
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={[styles.modalButton, styles.cancelButton]}
@@ -543,7 +477,7 @@ const UserManagementScreen: React.FC = () => {
                 >
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity
                   style={[styles.modalButton, styles.saveButton]}
                   onPress={handleEditUser}

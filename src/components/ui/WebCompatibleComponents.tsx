@@ -6,9 +6,14 @@
 
 
 // Create a custom Platform implementation
+// Check if we're in a browser environment with window.confirm available
+const isWebBrowser = typeof window !== 'undefined' &&
+  typeof window.confirm === 'function' &&
+  typeof window.alert === 'function';
+
 export const Platform = {
-  OS: typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent) ? 'android' : 
-       typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent) ? 'ios' : 'web',
+  OS: isWebBrowser ? 'web' :
+    (typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent) ? 'android' : 'ios'),
   select: (obj) => obj[Platform.OS] || obj.default || obj.web || {},
   Version: typeof navigator !== 'undefined' ? navigator.appVersion : '0',
 };
@@ -64,18 +69,18 @@ export const Alert = {
         const title = args[0];
         const message = args[1];
         const buttons = args[2];
-        
+
         if (buttons.length === 1) {
           window.alert(`${title}\n\n${message}`);
           if (buttons[0].onPress) buttons[0].onPress();
-        } 
+        }
         else if (buttons.length === 2) {
           const confirmResult = window.confirm(`${title}\n\n${message}`);
-          
+
           // Find cancel and confirm buttons
           const cancelButton = buttons.find(btn => btn.style === 'cancel');
           const confirmButton = buttons.find(btn => btn.style !== 'cancel');
-          
+
           if (confirmResult && confirmButton?.onPress) {
             confirmButton.onPress();
           } else if (!confirmResult && cancelButton?.onPress) {
@@ -100,18 +105,18 @@ export const Alert = {
         const title = args[0];
         const message = args[1];
         const buttons = args[2];
-        
+
         if (buttons.length === 1) {
           window.alert(`${title}\n\n${message}`);
           if (buttons[0].onPress) buttons[0].onPress();
-        } 
+        }
         else if (buttons.length === 2) {
           const confirmResult = window.confirm(`${title}\n\n${message}`);
-          
+
           // Find cancel and confirm buttons
           const cancelButton = buttons.find(btn => btn.style === 'cancel');
           const confirmButton = buttons.find(btn => btn.style !== 'cancel');
-          
+
           if (confirmResult && confirmButton?.onPress) {
             confirmButton.onPress();
           } else if (!confirmResult && cancelButton?.onPress) {

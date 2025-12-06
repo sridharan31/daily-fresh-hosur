@@ -11,8 +11,6 @@ export default class AdminUserManagementService {
    */
   static async getAdminUsers(): Promise<AdminUserWithRole[]> {
     try {
-      // In a real implementation, we would fetch users from Supabase
-      // For now, return mock data
       const { data, error } = await supabase
         .from('admin_users')
         .select(`
@@ -31,11 +29,33 @@ export default class AdminUserManagementService {
         throw new Error(error.message);
       }
 
-      // For now, return mock data since we don't have actual data in Supabase yet
-      return this.getMockAdminUsers();
+      if (!data || data.length === 0) {
+        console.warn('No admin users found in database');
+        return [];
+      }
+
+      // Transform database records to AdminUserWithRole format
+      return data.map(user => {
+        const role = ADMIN_ROLES.find(r => r.id === user.role_id) as AdminRole;
+        
+        if (!role) {
+          console.warn(`Unknown role_id: ${user.role_id} for user ${user.email}`);
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name || '',
+          lastName: user.last_name || '',
+          role: role || ADMIN_ROLES.find(r => r.type === 'manager') as AdminRole, // Fallback to manager role
+          isActive: user.is_active,
+          lastLogin: user.last_login,
+          createdAt: user.created_at,
+        };
+      });
     } catch (error) {
       console.error('Error fetching admin users:', error);
-      return this.getMockAdminUsers();
+      throw error;
     }
   }
 
@@ -52,20 +72,18 @@ export default class AdminUserManagementService {
     isActive: boolean;
   }): Promise<AdminUserWithRole> {
     try {
-      // In a real implementation, we would create the user in Supabase Auth
-      // and then create a record in our admin_users table
+      // Note: In a production environment, you would first create the user in Supabase Auth
+      // using the Admin API. For now, we assume the auth user already exists.
+      
+      // Create a temporary ID for demonstration (in production, use actual auth user ID)
+      const tempUserId = Math.random().toString(36).substring(2, 11);
 
-      // Step 1: Create the user in Supabase Auth (mock)
-      const authUser = {
-        id: Math.random().toString(36).substring(2, 11),
-      };
-
-      // Step 2: Create the admin_users record
+      // Create the admin_users record
       const { data, error } = await supabase
         .from('admin_users')
         .insert([
           {
-            id: authUser.id,
+            id: tempUserId, // In production, use actual auth.users.id
             email: userData.email,
             first_name: userData.firstName,
             last_name: userData.lastName,
@@ -81,18 +99,21 @@ export default class AdminUserManagementService {
         throw new Error(error.message);
       }
 
-      // For now, return a mock user
+      if (!data) {
+        throw new Error('Failed to create admin user');
+      }
+
       const role = ADMIN_ROLES.find(r => r.id === userData.roleId) as AdminRole;
 
       return {
-        id: authUser.id,
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role,
-        isActive: userData.isActive,
-        lastLogin: null,
-        createdAt: new Date().toISOString(),
+        id: data.id,
+        email: data.email,
+        firstName: data.first_name || '',
+        lastName: data.last_name || '',
+        role: role || ADMIN_ROLES.find(r => r.type === 'manager') as AdminRole,
+        isActive: data.is_active,
+        lastLogin: data.last_login,
+        createdAt: data.created_at,
       };
     } catch (error) {
       console.error('Error creating admin user:', error);
@@ -116,7 +137,6 @@ export default class AdminUserManagementService {
     }
   ): Promise<AdminUserWithRole> {
     try {
-      // In a real implementation, we would update the user in Supabase
       const updateData: any = {};
       if (userData.firstName !== undefined) updateData.first_name = userData.firstName;
       if (userData.lastName !== undefined) updateData.last_name = userData.lastName;
@@ -134,24 +154,21 @@ export default class AdminUserManagementService {
         throw new Error(error.message);
       }
 
-      // For now, return a mock updated user
-      const mockUsers = this.getMockAdminUsers();
-      const existingUser = mockUsers.find(u => u.id === userId);
-
-      if (!existingUser) {
+      if (!data) {
         throw new Error('User not found');
       }
 
-      const role = userData.roleId 
-        ? ADMIN_ROLES.find(r => r.id === userData.roleId) as AdminRole 
-        : existingUser.role;
+      const role = ADMIN_ROLES.find(r => r.id === data.role_id) as AdminRole;
 
       return {
-        ...existingUser,
-        firstName: userData.firstName ?? existingUser.firstName,
-        lastName: userData.lastName ?? existingUser.lastName,
-        role,
-        isActive: userData.isActive ?? existingUser.isActive,
+        id: data.id,
+        email: data.email,
+        firstName: data.first_name || '',
+        lastName: data.last_name || '',
+        role: role || ADMIN_ROLES.find(r => r.type === 'manager') as AdminRole,
+        isActive: data.is_active,
+        lastLogin: data.last_login,
+        createdAt: data.created_at,
       };
     } catch (error) {
       console.error('Error updating admin user:', error);
@@ -189,62 +206,4 @@ export default class AdminUserManagementService {
     return ADMIN_ROLES;
   }
 
-  /**
-   * Gets mock admin users for development
-   * @returns An array of mock admin users
-   */
-  private static getMockAdminUsers(): AdminUserWithRole[] {
-    return [
-      {
-        id: '1',
-        email: 'admin@dailyfreshhosur.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        role: ADMIN_ROLES.find(role => role.type === 'super_admin') as AdminRole,
-        isActive: true,
-        lastLogin: '2025-10-15T08:30:00.000Z',
-        createdAt: '2025-01-01T00:00:00.000Z',
-      },
-      {
-        id: '2',
-        email: 'manager@dailyfreshhosur.com',
-        firstName: 'Store',
-        lastName: 'Manager',
-        role: ADMIN_ROLES.find(role => role.type === 'manager') as AdminRole,
-        isActive: true,
-        lastLogin: '2025-10-17T14:45:00.000Z',
-        createdAt: '2025-03-15T00:00:00.000Z',
-      },
-      {
-        id: '3',
-        email: 'content@dailyfreshhosur.com',
-        firstName: 'Content',
-        lastName: 'Editor',
-        role: ADMIN_ROLES.find(role => role.type === 'content_editor') as AdminRole,
-        isActive: true,
-        lastLogin: '2025-10-16T11:20:00.000Z',
-        createdAt: '2025-05-10T00:00:00.000Z',
-      },
-      {
-        id: '4',
-        email: 'sales@dailyfreshhosur.com',
-        firstName: 'Sales',
-        lastName: 'Representative',
-        role: ADMIN_ROLES.find(role => role.type === 'sales_agent') as AdminRole,
-        isActive: false,
-        lastLogin: '2025-09-28T09:15:00.000Z',
-        createdAt: '2025-06-20T00:00:00.000Z',
-      },
-      {
-        id: '5',
-        email: 'support@dailyfreshhosur.com',
-        firstName: 'Customer',
-        lastName: 'Support',
-        role: ADMIN_ROLES.find(role => role.type === 'support_staff') as AdminRole,
-        isActive: true,
-        lastLogin: '2025-10-18T10:05:00.000Z',
-        createdAt: '2025-07-05T00:00:00.000Z',
-      },
-    ];
-  }
 }

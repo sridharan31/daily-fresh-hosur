@@ -7,12 +7,11 @@ if (typeof window !== 'undefined') {
 
 import React, { useState } from 'react';
 import {
-    Dimensions,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useSelector } from 'react-redux';
@@ -41,7 +40,7 @@ const onboardingData: OnboardingSlide[] = [
     title: 'Fresh from Hosur Farms',
     description: 'Get fresh organic groceries sourced directly from local Hosur farms, delivered to your doorstep with quality guaranteed.',
     image: require('../assets/images/onboarding-1.png'),
-    icon: 'shopping-bag',
+    icon: '🥬',
     color: '#4CAF50',
   },
   {
@@ -49,7 +48,7 @@ const onboardingData: OnboardingSlide[] = [
     title: 'Same Day Delivery in Hosur',
     description: 'Lightning fast delivery across Hosur. Order before 2 PM and get fresh groceries delivered by evening.',
     image: require('../assets/images/onboarding-2.png'),
-    icon: 'truck',
+    icon: '🥕',
     color: '#2196F3',
   },
   {
@@ -57,7 +56,7 @@ const onboardingData: OnboardingSlide[] = [
     title: 'Daily Fresh Prices',
     description: 'Best prices guaranteed on all your favorite items. Fresh groceries, honest prices, delivered daily.',
     image: require('../assets/images/onboarding-3.png'),
-    icon: 'tag',
+    icon: '🍅',
     color: '#FF9800',
   },
 ];
@@ -65,7 +64,7 @@ const onboardingData: OnboardingSlide[] = [
 export default function Index() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('onboarding');
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
   // Safely try to access Redux state
   let user = null;
   try {
@@ -106,7 +105,7 @@ export default function Index() {
   // Login Screen
   if (currentScreen === 'login') {
     return (
-      <SimpleLoginScreen 
+      <SimpleLoginScreen
         onRegisterPress={() => setCurrentScreen('register')}
         onGuestPress={handleGuestAccess}
         showGuestOption={true}
@@ -119,7 +118,7 @@ export default function Index() {
   // Registration Screen
   if (currentScreen === 'register') {
     return (
-      <SimpleRegisterScreen 
+      <SimpleRegisterScreen
         onRegisterSuccess={handleLogin}
         onLoginPress={() => setCurrentScreen('login')}
         showBackToLogin={true}
@@ -145,15 +144,17 @@ export default function Index() {
 
       {/* Content */}
       <View style={styles.content}>
-        <View style={styles.imageContainer}>
-          <Image 
-            source={currentItem.image} 
-            style={styles.image} 
-            resizeMode="contain" 
+        {/* <View style={styles.imageContainer}>
+          <Image
+            source={currentItem.image}
+            style={styles.image}
+            resizeMode="contain"
           />
-        </View>
-        
+          <div style={styles.logo}>🥬</div>
+        </View> */}
+
         <View style={styles.textContainer}>
+          <div style={styles.logo}>{currentItem.icon}</div>
           <Text style={styles.title}>{currentItem.title}</Text>
           <Text style={styles.description}>{currentItem.description}</Text>
         </View>
@@ -183,7 +184,7 @@ export default function Index() {
           </Text>
           <Icon name="arrow-right" size={20} color="white" />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           onPress={() => setCurrentScreen('login')}
           style={styles.signInButton}
@@ -223,6 +224,10 @@ const styles = StyleSheet.create({
   logoContainer: {
     flex: 1,
   },
+  logo: {
+    fontSize: '80px',
+    marginBottom: '20px',
+  },
   skipButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -232,7 +237,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   content: {
-    flex: 1,
+    // flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 30,
@@ -248,7 +253,7 @@ const styles = StyleSheet.create({
     height: width * 0.8,
   },
   textContainer: {
-    flex: 0.4,
+    // flex: 0.4,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 20,

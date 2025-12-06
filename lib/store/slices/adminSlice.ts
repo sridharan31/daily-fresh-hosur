@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { adminSupabaseService } from '../../services/adminSupabaseService';
+import { adminSupabaseService as adminService } from '../../services/adminSupabaseService';
 import {
   AdminAnalytics,
   AdminCustomer,
@@ -22,7 +22,7 @@ export const fetchDashboardData = createAsyncThunk<
   'admin/fetchDashboardData',
   async (period = 'today', {rejectWithValue}) => {
     try {
-      const data = await adminSupabaseService.getDashboardData(period);
+      const data = await adminService.getDashboardData(period);
       return data;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch dashboard data');
@@ -39,16 +39,8 @@ export const fetchAdminOrders = createAsyncThunk<
   async (params, {rejectWithValue}) => {
     try {
       const response = await adminService.getOrders(params);
-      // Transform Order[] to AdminOrder[]
-      const adminOrders: AdminOrder[] = response.data!.orders.map(order => ({
-        ...order,
-        customerName: 'Customer', // In real app, this would come from user lookup
-        customerEmail: 'customer@example.com',
-        customerPhone: '+1234567890',
-        lastStatusUpdate: order.updatedAt,
-        total: order.finalAmount, // Add the missing total property
-      }));
-      return adminOrders;
+      // Service returns { orders: AdminOrder[], pagination: {} }
+      return response.orders;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch orders');
     }
@@ -64,12 +56,12 @@ export const fetchAdminProducts = createAsyncThunk<
   async (params, {rejectWithValue}) => {
     try {
       const response = await adminService.getProducts(params);
-      // Transform Product[] to AdminProduct[]
-      const adminProducts: AdminProduct[] = response.data!.products.map(product => ({
+      // Service returns { products: AdminProduct[], pagination: {} }
+      // Products already have minStock and lastRestocked from database
+      const adminProducts: AdminProduct[] = response.products.map(product => ({
         ...product,
         totalSold: 0, // In real app, this would come from analytics
         revenue: 0,
-        lastRestocked: new Date().toISOString(),
         costPrice: product.price * 0.7, // Example calculation
         profitMargin: 30,
         views: 0,
@@ -91,19 +83,8 @@ export const fetchAdminCustomers = createAsyncThunk<
   async (params, {rejectWithValue}) => {
     try {
       const response = await adminService.getCustomers(params);
-      // Transform User[] to AdminCustomer[]
-      const adminCustomers: AdminCustomer[] = response.data!.customers.map(user => ({
-        ...user,
-        name: `${user.firstName} ${user.lastName}`, // Combine first and last name
-        totalOrders: 0, // In real app, this would come from analytics
-        totalSpent: 0,
-        averageOrderValue: 0,
-        loyaltyPoints: 0,
-        registrationSource: 'web',
-        segment: 'new' as const,
-        isActive: true, // Default active status
-      }));
-      return adminCustomers;
+      // Service returns { customers: AdminCustomer[], pagination: {} }
+      return response.customers;
     } catch (error: any) {
       return rejectWithValue(error.message || 'Failed to fetch customers');
     }

@@ -35,7 +35,7 @@ interface InventoryItem {
 const InventoryScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { products, productsLoading } = useSelector((state: RootState) => state.admin);
-  
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -73,10 +73,10 @@ const InventoryScreen: React.FC = () => {
     name: product.name,
     category: product.category,
     stock: product.stock,
-    minStock: 10, // Default minimum stock
+    minStock: product.minStock, // From database
     price: product.price,
     unit: product.unit,
-    lastRestocked: product.lastRestocked || new Date().toISOString(),
+    lastRestocked: product.lastRestocked, // From database
     isActive: product.isActive,
     image: product.images?.[0],
   }));
@@ -84,7 +84,7 @@ const InventoryScreen: React.FC = () => {
   const filteredItems = inventoryItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || String(item.category) === selectedCategory;
-    
+
     let matchesFilter = true;
     switch (filterType) {
       case 'low_stock':
@@ -102,7 +102,7 @@ const InventoryScreen: React.FC = () => {
       default:
         matchesFilter = true;
     }
-    
+
     return matchesSearch && matchesCategory && matchesFilter;
   });
 
@@ -134,7 +134,7 @@ const InventoryScreen: React.FC = () => {
 
   const handleStockUpdate = () => {
     if (!selectedProduct || !updateQuantity) return;
-    
+
     const newStock = parseInt(updateQuantity);
     if (isNaN(newStock) || newStock < 0) {
       Alert.alert('Error', 'Please enter a valid quantity');

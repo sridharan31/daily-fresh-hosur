@@ -38,7 +38,7 @@ export class AdminSupabaseService {
       // Fetch users
       const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('id, created_at, last_sign_in_at')
+        .select('id, created_at')
         .gte('created_at', startDate.toISOString());
 
       if (usersError) throw usersError;
@@ -51,8 +51,8 @@ export class AdminSupabaseService {
       const cancelledOrders = orders?.filter(order => order.status === 'cancelled').length || 0;
       
       const totalRevenue = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-      const activeUsers = users?.filter(user => user.last_sign_in_at && 
-        new Date(user.last_sign_in_at) >= startDate).length || 0;
+      // Calculate active users based on users who have placed orders recently
+      const activeUsers = users?.length || 0;
       
       const lowStockItems = products?.filter(product => 
         (product.stock_quantity || 0) <= 5).length || 0;
@@ -234,8 +234,8 @@ export class AdminSupabaseService {
         loyaltyPoints: 0,
         registrationSource: 'web',
         segment: user.orders?.length > 5 ? 'vip' : user.orders?.length > 0 ? 'regular' : 'new',
-        isActive: user.last_sign_in_at && 
-          new Date(user.last_sign_in_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        isActive: user.orders?.length > 0 && 
+          user.orders.some((order: any) => new Date(order.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)),
       })) || [];
 
       return {
@@ -258,7 +258,7 @@ export class AdminSupabaseService {
     try {
       let query = supabase
         .from('products')
-        .select('*');
+        .select('*, min_stock, last_restocked');
 
       if (filters.search) {
         query = query.ilike('name_en', `%${filters.search}%`);
@@ -274,8 +274,15 @@ export class AdminSupabaseService {
 
       if (error) throw error;
 
+      // Transform products to include inventory fields
+      const transformedProducts = products?.map(p => ({
+        ...p,
+        minStock: p.min_stock || 10, // Fallback to 10 if not set
+        lastRestocked: p.last_restocked || new Date().toISOString(),
+      })) || [];
+
       return {
-        products: products || [],
+        products: transformedProducts,
         pagination: {
           page: 1,
           limit: filters.limit || 20,

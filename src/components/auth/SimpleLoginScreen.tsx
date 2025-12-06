@@ -36,9 +36,9 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [localError, setLocalError] = useState<string | null>(null);
-  
+
   // Use the Supabase authentication hooks instead of Redux
   const { mutate: login, isPending: isLoading, error: loginError, isSuccess, data: loginData } = useAuthLogin();
 
@@ -47,7 +47,7 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
     if (isSuccess && loginData?.user) {
       console.log('🎉 Login successful, user data:', loginData.user);
       console.log('🔍 User role detected:', loginData.user.role);
-      
+
       // Role-based navigation using actual user role from database
       if (loginData.user.role === 'admin') {
         console.log('🔐 Admin user detected, redirecting to admin dashboard');
@@ -56,7 +56,7 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
         console.log('👤 Regular user, redirecting to main app');
         router.replace('/(tabs)/home' as any);
       }
-      
+
       // Call the onLoginSuccess callback if provided (but don't let it override navigation)
       if (onLoginSuccess) {
         console.log('📞 Calling onLoginSuccess callback');
@@ -81,7 +81,7 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
   const validateForm = () => {
     const emailError = validateEmail(email);
     const passwordError = validatePassword(password);
-    
+
     setErrors({
       email: emailError,
       password: passwordError,
@@ -112,10 +112,10 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
     try {
       console.log('🔐 Attempting login with:', { email });
       setLocalError(null);
-      
+
       // Use the Supabase login mutation
       login({ email, password });
-      
+
     } catch (error: any) {
       console.error('❌ Login error:', error);
       setLocalError('An unexpected error occurred. Please try again.');
@@ -139,19 +139,19 @@ export const SimpleLoginScreen: React.FC<SimpleLoginScreenProps> = ({
       colors={['#f8fafc', '#e2e8f0', '#cbd5e1']}
       style={{ flex: 1 }}
     >
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView 
+        <ScrollView
           style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 32 }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
         >
           {/* Header Section */}
           <View style={{ alignItems: 'center', marginBottom: 32 }}>
-            <View style={{ marginBottom: 24, backgroundColor: 'white', borderRadius: 50, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 8 }}>
-              <DailyFreshLogo width={120} height={48} variant="full" />
+            <View style={{ marginBottom: 24, padding: 16 }}>
+              <DailyFreshLogo width={120} height={60} variant="full" />
             </View>
             <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#1f2937', marginBottom: 8 }}>Welcome Back!</Text>
             <Text style={{ fontSize: 16, color: '#6b7280', textAlign: 'center', lineHeight: 24, marginBottom: 8 }}>
