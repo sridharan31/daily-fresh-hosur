@@ -11,24 +11,232 @@ This document outlines the complete UX requirements for an admin order managemen
 ## 2. User Flow & Navigation
 
 ### 2.1 Main Navigation Structure
+
+> **Note:** This navigation structure reflects the actual implementation in `src/navigation/AdminNavigator.tsx`
+
+#### Navigation Architecture
 ```
-Admin Login
-    ↓
-Dashboard (Order Overview)
-    ↓
-├─── Orders List
-│    ↓
-│    └─── Order Details
-│         ↓
-│         ├─── Update Status
-│         ├─── View Customer Info
-│         ├─── View Items
-│         ├─── View/Edit Delivery Slot
-│         └─── Order History/Timeline
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        ADMIN NAVIGATION HIERARCHY                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📱 AdminStackNavigator (Main Entry Point)                                   │
+│  └── AdminTabs ─────────────────────────────────────────────────────────────┤
+│      │                                                                       │
+│      ├── 🎛️ AdminDrawerNavigator (Side Menu)                                │
+│      │   ├── Main ──────► AdminTabNavigator (Bottom Tabs)                   │
+│      │   ├── Profile ───► AdminProfileScreen                                │
+│      │   ├── Settings ──► AdminSettingsScreen                               │
+│      │   ├── SlotManagement ► SlotManagementScreen                          │
+│      │   └── Reports ───► AnalyticsScreen                                   │
+│      │                                                                       │
+│      └── 📊 AdminTabNavigator (Bottom Tab Bar)                              │
+│          ├── Dashboard ──► AdminDashboardScreen                             │
+│          ├── Products ───► ProductManagementScreen                          │
+│          ├── Orders ─────► OrderManagementScreen                            │
+│          ├── Customers ──► CustomerManagementScreen                         │
+│          ├── Inventory ──► InventoryScreen                                  │
+│          └── AdminUsers ─► AdminUserManagementScreen                        │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                         STACK SCREENS (Modals/Details)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📦 Product Management                                                       │
+│  ├── AddProduct ────────► AddProductScreen (modal)                          │
+│  ├── EditProduct ───────► EditProductScreen                                 │
+│  ├── ProductDetails ────► ProductDetailsScreen                              │
+│  └── CategoryManagement ► CategoryManagementScreen                          │
+│                                                                              │
+│  👤 Admin Settings                                                           │
+│  ├── AdminProfile ──────► AdminProfileScreen                                │
+│  ├── AdminSettings ─────► AdminSettingsScreen                               │
+│  ├── AdminSecurity ─────► AdminSecurityScreen                               │
+│  ├── AdminTwoFactor ────► AdminTwoFactorScreen                              │
+│  └── AdminUserManagement ► AdminUserManagementScreen                        │
+│                                                                              │
+│  🚚 Planned Screens (Not Yet Implemented)                                   │
+│  ├── OrderDetails ──────► OrderDetailsScreen                                │
+│  ├── OrderTracking ─────► OrderTrackingScreen                               │
+│  ├── RefundManagement ──► RefundManagementScreen                            │
+│  ├── CustomerDetails ───► CustomerDetailsScreen                             │
+│  ├── StockAlerts ───────► StockAlertsScreen                                 │
+│  └── SupplierManagement ► SupplierManagementScreen                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Customer App Navigation
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       CUSTOMER APP NAVIGATION                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📱 MainTabNavigator (Bottom Tabs)                                          │
+│  ├── 🏠 Home ───────────► HomeScreen                                        │
+│  ├── 🛒 Cart ───────────► CartScreen                                        │
+│  ├── 📋 Orders ─────────► OrdersScreen                                      │
+│  └── 👤 Profile ────────► ProfileScreen                                     │
+│                                                                              │
+│  📄 Stack Screens                                                            │
+│  ├── /checkout ─────────► CheckoutScreen                                    │
+│  ├── /order-confirmation ► OrderConfirmationScreen                          │
+│  ├── /product/[id] ─────► ProductDetailScreen                               │
+│  ├── /category/[id] ────► CategoryProductsScreen                            │
+│  ├── /search ───────────► SearchScreen                                      │
+│  ├── /notifications ────► NotificationsScreen                               │
+│  ├── /favorites ────────► FavoritesScreen                                   │
+│  ├── /offers ───────────► OffersScreen                                      │
+│  └── /support ──────────► SupportScreen                                     │
+│                                                                              │
+│  🔐 Auth Navigator                                                           │
+│  ├── Login ─────────────► LoginScreen                                       │
+│  ├── Register ──────────► RegisterScreen                                    │
+│  ├── ForgotPassword ────► ForgotPasswordScreen                              │
+│  └── OtpVerification ───► OtpVerificationScreen                             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Navigation Type Definitions
+```typescript
+// Admin Stack Parameter List
+export type AdminStackParamList = {
+  AdminTabs: undefined;
+  
+  // Product Management
+  AddProduct: undefined;
+  EditProduct: {productId: string};
+  ProductDetails: {productId: string};
+  CategoryManagement: undefined;
+  BulkProductUpdate: undefined;
+  
+  // Order Management
+  OrderDetails: {orderId: string};
+  OrderTracking: {orderId: string};
+  RefundManagement: undefined;
+  
+  // Customer Management
+  CustomerDetails: {customerId: string};
+  CustomerCommunication: {customerId: string};
+  LoyaltyManagement: undefined;
+  
+  // Inventory Management
+  StockAlerts: undefined;
+  SupplierManagement: undefined;
+  StockMovement: undefined;
+  
+  // Settings
+  AdminProfile: undefined;
+  AdminSettings: undefined;
+  AdminSecurity: undefined;
+  AdminTwoFactor: undefined;
+  AdminUserManagement: undefined;
+};
+
+// Admin Tab Parameter List
+export type AdminTabParamList = {
+  Dashboard: undefined;
+  Products: undefined;
+  Orders: undefined;
+  Customers: undefined;
+  Inventory: undefined;
+  AdminUsers: undefined;
+};
+
+// Admin Drawer Parameter List
+export type AdminDrawerParamList = {
+  Main: undefined;
+  Profile: undefined;
+  Settings: undefined;
+  SlotManagement: undefined;
+  Reports: undefined;
+  Logout: undefined;
+};
+```
+
+#### Project Folder Structure
+```
+Daily Fresh Hosur/
+├── app/                          # Expo Router pages
+│   ├── (tabs)/                   # Tab-based navigation
+│   │   ├── _layout.tsx          # Tab layout configuration
+│   │   ├── home.tsx             # Home tab
+│   │   ├── cart.tsx             # Cart tab
+│   │   ├── orders.tsx           # Orders tab
+│   │   └── profile.tsx          # Profile tab
+│   ├── _layout.tsx              # Root layout
+│   ├── index.tsx                # Entry point
+│   ├── checkout.tsx             # Checkout flow
+│   ├── order-confirmation.tsx   # Order success
+│   ├── admin.tsx                # Admin entry
+│   ├── category/[id].tsx        # Category products
+│   ├── product/[id].tsx         # Product details
+│   └── ...                      # Other screens
 │
-├─── Filter/Search Orders
-├─── Delivery Slot Management (Optional)
-└─── Notifications/Alerts
+├── src/
+│   ├── navigation/              # Navigation configuration
+│   │   ├── AdminNavigator.tsx   # Admin navigation stack
+│   │   ├── AuthNavigator.tsx    # Auth flow navigator
+│   │   ├── MainTabNavigator.tsx # Customer tabs
+│   │   ├── AppNavigator.tsx     # Root navigator
+│   │   ├── navigationTypes.ts   # Type definitions
+│   │   └── navigationUtils.ts   # Navigation utilities
+│   │
+│   ├── screens/
+│   │   ├── admin/               # Admin screens (21 files)
+│   │   │   ├── AdminDashboardScreen.tsx
+│   │   │   ├── OrderManagementScreen.tsx
+│   │   │   ├── ProductManagementScreen.tsx
+│   │   │   ├── CustomerManagementScreen.tsx
+│   │   │   ├── InventoryScreen.tsx
+│   │   │   ├── SlotManagementScreen.tsx
+│   │   │   ├── AnalyticsScreen.tsx
+│   │   │   ├── CategoryManagementScreen.tsx
+│   │   │   ├── AdminUserManagementScreen.tsx
+│   │   │   ├── AdminProfileScreen.tsx
+│   │   │   ├── AdminSettingsScreen.tsx
+│   │   │   ├── AdminSecurityScreen.tsx
+│   │   │   ├── AdminTwoFactorScreen.tsx
+│   │   │   └── products/        # Product CRUD screens
+│   │   │       ├── AddProductScreen.tsx
+│   │   │       ├── EditProductScreen.tsx
+│   │   │       └── ProductDetailsScreen.tsx
+│   │   │
+│   │   ├── auth/                # Authentication screens (12 files)
+│   │   ├── cart/                # Cart screens (3 files)
+│   │   ├── delivery/            # Delivery screens (3 files)
+│   │   ├── home/                # Home screens (4 files)
+│   │   ├── orders/              # Order screens (3 files)
+│   │   └── reviews/             # Review screens (1 file)
+│   │
+│   ├── components/              # Reusable components (64 files)
+│   ├── hooks/                   # Custom React hooks (19 files)
+│   ├── config/                  # Configuration files
+│   ├── contexts/                # React contexts
+│   └── styles/                  # Shared styles
+│
+├── lib/                         # Core libraries (101 files)
+│   └── supabase/               # Supabase integration
+│       ├── client.ts           # Supabase client
+│       ├── store/              # Redux store
+│       └── services/           # API services
+│
+├── database/                    # Database schemas & scripts
+│   ├── README.md               # Database documentation
+│   ├── schemas/                # Organized SQL schemas
+│   ├── functions/              # Database functions
+│   ├── migrations/             # Version-controlled migrations
+│   ├── scripts/                # Admin & utility scripts
+│   ├── seeds/                  # Seed data
+│   ├── policies/               # RLS policies
+│   └── legacy/                 # Original schema files
+│
+└── agent/                       # Planning & documentation
+    ├── PlanUXorder.md          # This file
+    ├── app.md                  # App overview
+    ├── appdetails.md           # Detailed specifications
+    └── fulldetails.md          # Complete documentation
 ```
 
 ---
@@ -643,7 +851,19 @@ Cancelled  Cancelled   Cancelled
 
 ## 9. Data Structure (Supabase Schema Guidance)
 
-check in Supabase using mcp 
+> **Note:** See `database/README.md` for complete database documentation
+
+### 9.1 Core Tables
+| Table | Description |
+|-------|-------------|
+| `users` | User profiles extending Supabase auth |
+| `orders` | Order records with GST calculations |
+| `order_items` | Line items for each order |
+| `order_status_history` | Audit trail for order changes |
+| `products` | Product catalog with Tamil support |
+| `categories` | Hierarchical product categories |
+| `delivery_slots` | Available time slots |
+| `delivery_slot_instances` | Concrete slot instances |
 
 ### 9.4 Real-time Subscriptions
 - Subscribe to `orders` table for new orders and status changes
@@ -744,10 +964,20 @@ Before launch, test:
 
 ## 12. Technical Implementation Notes
 
-ref existing Code 
+> **Reference:** See existing code in `src/navigation/AdminNavigator.tsx` and `src/screens/admin/`
+
+### 12.1 Navigation Libraries
+```json
+{
+  "@react-navigation/native": "^6.x",
+  "@react-navigation/native-stack": "^6.x",
+  "@react-navigation/bottom-tabs": "^6.x",
+  "@react-navigation/drawer": "^6.x"
+}
+```
 
 ### 12.2 Supabase Setup
-MCP add Supabase
+> **Reference:** See `lib/supabase/client.ts` for configuration
 
 ### 12.3 Performance Optimization
 - Use FlatList for long lists with `getItemLayout`
@@ -777,7 +1007,10 @@ MCP add Supabase
 - Platform-specific code when necessary
 - Consistent UX across platforms where possible
 
-### 13.4  web 
+### 13.4 Web
+- Expo web support with `npx expo start --web`
+- Responsive layout for desktop browsers
+- Web-compatible components in `src/components/ui/WebCompatibleComponents`
 
 ---
 
@@ -793,15 +1026,581 @@ MCP add Supabase
 
 ---
 
-## Conclusion
+## 15. Database Schema Reference
 
-This comprehensive UX specification provides a complete blueprint for building an intuitive, efficient, and scalable admin order management system. The design prioritizes quick access to critical information, smooth workflows for status updates, and real-time synchronization across devices.
+> **Full documentation:** See `database/README.md`
 
-**Key Success Metrics:**
-- Time to update order status < 5 seconds
-- Admin can process 30+ orders per hour
-- Zero missed order notifications
-- 95% admin satisfaction with interface
-- App load time < 2 seconds
+### Key Tables for Order Management:
 
-Remember to iterate based on real admin feedback and usage patterns!
+```sql
+-- Orders table with GST compliance
+CREATE TABLE orders (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  order_number TEXT UNIQUE NOT NULL,
+  status order_status DEFAULT 'pending',
+  payment_status payment_status DEFAULT 'pending',
+  delivery_slot_instance_id UUID REFERENCES delivery_slot_instances(id),
+  subtotal DECIMAL(10,2) NOT NULL,
+  cgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  sgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  total_amount DECIMAL(10,2) NOT NULL,
+  delivery_address JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Order status history for audit trail
+CREATE TABLE order_status_history (
+  id UUID PRIMARY KEY,
+  order_id UUID REFERENCES orders(id),
+  status order_status NOT NULL,
+  notes TEXT,
+  updated_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Delivery slot system
+CREATE TABLE delivery_slot_instances (
+  id UUID PRIMARY KEY,
+  slot_date DATE NOT NULL,
+  start_ts TIMESTAMP NOT NULL,
+  end_ts TIMESTAMP NOT NULL,
+  capacity INTEGER NOT NULL,
+- Use Row Level Security (RLS) for admin-only access
+
+---
+
+## 10. Additional Features (Nice to Have)
+
+### 10.1 Bulk Actions
+- Select multiple orders
+- Bulk status update
+- Bulk export
+- **Bulk reschedule** (move multiple orders to new slot)
+
+### 10.2 Delivery Slot Management
+- **Slot capacity configuration**
+  - Set max orders per time slot
+  - Block/unblock specific slots
+  - Create custom time slots
+- **Automatic slot suggestions**
+  - When rescheduling, show best available slots
+  - Smart recommendations based on location, order size
+- **Slot analytics**
+  - Most popular delivery times
+  - Slot utilization rate
+  - Average orders per slot
+- **Delivery route optimization** (advanced)
+  - Group orders by area and slot
+  - Suggest optimal delivery sequence
+
+### 10.3 Analytics Dashboard
+- Order trends graph (daily/weekly/monthly)
+- Revenue analytics
+- Popular products
+- Peak ordering times
+- Average fulfillment time
+- **Delivery slot analytics:**
+  - Slot utilization by day/time
+  - Most requested time slots
+  - On-time delivery rate
+  - Average delivery slot reschedules
+  - Slot capacity trends
+
+### 10.4 Customer Communication
+- In-app chat/messaging
+- Template messages (SMS/Email)
+- Order status notification templates
+
+### 10.5 Reports
+- Daily sales report
+- Order fulfillment report
+- **Delivery slot performance report**
+- **On-time delivery report**
+- Export to CSV/PDF
+
+### 10.6 Settings
+- Notification preferences
+- Auto-confirm settings
+- **Delivery slot settings:**
+  - Default slot duration
+  - Slot capacity limits
+  - Buffer time between slots
+  - Advance booking limit
+  - Same-day delivery cutoff time
+- Display preferences (theme, language)
+- Admin account management
+
+---
+
+## 11. User Testing Checklist
+
+Before launch, test:
+- [ ] Order list loads quickly with 100+ orders
+- [ ] Status updates reflect immediately
+- [ ] Real-time notifications work correctly
+- [ ] Offline functionality handles gracefully
+- [ ] Search and filters return accurate results
+- [ ] All critical actions have confirmations
+- [ ] Error states display helpful messages
+- [ ] UI is responsive on different screen sizes
+- [ ] Color-blind users can distinguish statuses
+- [ ] App performs well on low-end devices
+- [ ] Supabase RLS policies prevent unauthorized access
+- [ ] **Delivery slot countdown timer is accurate**
+- [ ] **Urgent alerts trigger at correct time (2 hours before)**
+- [ ] **Slot capacity updates correctly when orders rescheduled**
+- [ ] **Reschedule functionality prevents double-booking**
+- [ ] **Delivery slot filters work accurately**
+- [ ] **Customer notifications sent when slot changed**
+- [ ] **Past due slots are clearly identified**
+
+---
+
+## 12. Technical Implementation Notes
+
+> **Reference:** See existing code in `src/navigation/AdminNavigator.tsx` and `src/screens/admin/`
+
+### 12.1 Navigation Libraries
+```json
+{
+  "@react-navigation/native": "^6.x",
+  "@react-navigation/native-stack": "^6.x",
+  "@react-navigation/bottom-tabs": "^6.x",
+  "@react-navigation/drawer": "^6.x"
+}
+```
+
+### 12.2 Supabase Setup
+> **Reference:** See `lib/supabase/client.ts` for configuration
+
+### 12.3 Performance Optimization
+- Use FlatList for long lists with `getItemLayout`
+- Implement pagination (20-50 orders per page)
+- Cache images with react-native-fast-image
+- Debounce search with 300ms delay
+- Memoize expensive computations with useMemo
+
+---
+
+## 13. Mobile-Specific Considerations
+
+### 13.1 iOS
+- Use native iOS design patterns where appropriate
+- Handle safe area insets (notch, home indicator)
+- Support dark mode
+- Haptic feedback with iOS haptics API
+
+### 13.2 Android
+- Material Design components
+- Hardware back button handling
+- Support for various screen sizes and densities
+- Notification channels for different alert types
+
+### 13.3 Cross-Platform
+- Test on both platforms regularly
+- Platform-specific code when necessary
+- Consistent UX across platforms where possible
+
+### 13.4 Web
+- Expo web support with `npx expo start --web`
+- Responsive layout for desktop browsers
+- Web-compatible components in `src/components/ui/WebCompatibleComponents`
+
+---
+
+## 14. Security Considerations
+
+- Implement secure admin authentication (Supabase Auth)
+- Use RLS policies to restrict data access
+- Validate all inputs on client and server
+- Encrypt sensitive data in transit (HTTPS)
+- Log all critical actions (status changes, cancellations)
+- Implement session timeout
+- Two-factor authentication for admin accounts (optional but recommended)
+
+---
+
+## 15. Database Schema Reference
+
+> **Full documentation:** See `database/README.md`
+
+### Key Tables for Order Management:
+
+```sql
+-- Orders table with GST compliance
+CREATE TABLE orders (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  order_number TEXT UNIQUE NOT NULL,
+  status order_status DEFAULT 'pending',
+  payment_status payment_status DEFAULT 'pending',
+  delivery_slot_instance_id UUID REFERENCES delivery_slot_instances(id),
+  subtotal DECIMAL(10,2) NOT NULL,
+  cgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  sgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  total_amount DECIMAL(10,2) NOT NULL,
+  delivery_address JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Order status history for audit trail
+CREATE TABLE order_status_history (
+  id UUID PRIMARY KEY,
+  order_id UUID REFERENCES orders(id),
+  status order_status NOT NULL,
+  notes TEXT,
+  updated_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Delivery slot system
+CREATE TABLE delivery_slot_instances (
+  id UUID PRIMARY KEY,
+  slot_date DATE NOT NULL,
+  start_ts TIMESTAMP NOT NULL,
+  end_ts TIMESTAMP NOT NULL,
+  capacity INTEGER NOT NULL,
+  booked_count INTEGER DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'available'
+);
+```
+
+---
+
+## 16. Implementation Status
+
+### 16.1 Completed Components & Screens
+
+#### Order Management Service (`lib/supabase/services/orderManagement.ts`)
+**Status: ✅ Implemented**
+
+A comprehensive Supabase service centralizing all order-related operations:
+
+- **Types Defined:**
+  - `Order`, `OrderItem`, `OrderAddress`, `OrderStatus`, `PaymentStatus`
+  - `OrderWithDetails` (includes items, customer, delivery slot, status history)
+  - `OrderStatusHistory`, `CreateOrderInput`, `OrderFilters`
+
+- **Customer Operations:**
+  - `getCustomerOrders(userId, filters)` - Fetch user-specific orders with filtering
+  - `getOrderDetails(orderId, userId?)` - Retrieve single order details with ownership validation
+  - `createOrder(input)` - Create order with GST calculation, order number generation
+  - `cancelOrder(orderId, userId, reason)` - Customer cancellation with status validation
+
+- **Admin Operations:**
+  - `getAdminOrders(filters)` - Fetch all orders with extensive filtering
+  - `updateOrderStatus(orderId, newStatus, adminUserId, notes?)` - Status update with transition validation
+  - `getOrderStatistics(period)` - Aggregated order metrics (today, week, month)
+  - `getUrgentOrders()` - Orders with delivery slots within 2 hours
+  - `updatePaymentStatus(orderId, paymentStatus, paymentId?)` - Payment status updates
+  - `processRefund(orderId, refundAmount, adminUserId)` - Refund processing
+
+- **Real-time:**
+  - `subscribeToOrders(callback, filters?)` - Real-time order updates using Supabase
+
+#### OrderStatusTimeline Component (`src/components/orders/OrderStatusTimeline.tsx`)
+**Status: ✅ Implemented**
+
+A reusable visual component for order status progression:
+
+- Displays status steps: `pending` → `confirmed` → `preparing` → `out_for_delivery` → `delivered`
+- Supports both `horizontal` and `vertical` layouts
+- Shows `completed`, `current`, and `upcoming` status states
+- Integrates with `statusHistory` for timestamps
+- Special UI for `cancelled` and `refunded` terminal states
+- Exports `getStatusInfo()` helper for consistent status labels, colors, and icons
+
+#### UpdateStatusModal Component (`src/components/orders/UpdateStatusModal.tsx`)
+**Status: ✅ Implemented**
+
+Bottom sheet modal for admin status updates:
+
+- Displays current order status
+- Shows valid next status options based on current status
+- Supports optional notes for status updates
+- Toggles for customer notification (SMS/Email) and push notifications
+- Confirmation dialog for critical actions (cancel, refund)
+- Loading states and error handling
+
+#### AdminOrderDetailsScreen (`src/screens/admin/AdminOrderDetailsScreen.tsx`)
+**Status: ✅ Implemented**
+
+Comprehensive admin order management screen:
+
+- **Status Card:** Current status badge, timeline, update button
+- **Delivery Slot Card:** Date/time, countdown timer, urgent indicators
+- **Customer Info:** Name, phone, email, delivery address with tap-to-action
+- **Order Items:** Product list with images, quantities, prices
+- **Payment Summary:** Subtotal, GST breakdown, delivery, discounts, total
+- **Order History:** Status change audit trail
+- **Quick Actions:** Print invoice, call customer, get directions
+- Integrates with UpdateStatusModal for status changes
+
+#### CustomerOrderDetailsScreen (`src/screens/orders/CustomerOrderDetailsScreen.tsx`)
+**Status: ✅ Implemented**
+
+Enhanced customer order details screen:
+
+- **Status Hero:** Large status icon, order number, date
+- **Delivery Card:** Date, time slot, address preview
+- **Order Timeline:** Vertical progress with timestamps
+- **Order Items:** Product images, names, quantities, totals
+- **Bill Details:** Itemized breakdown with GST
+- **Delivery Address:** Full address with landmarks and instructions
+- **Action Buttons:** Cancel order, reorder, contact support
+- **Cancellation Info:** Reason and refund status for cancelled orders
+
+### 16.2 Navigation Updates
+## 12. Technical Implementation Notes
+
+> **Reference:** See existing code in `src/navigation/AdminNavigator.tsx` and `src/screens/admin/`
+
+### 12.1 Navigation Libraries
+```json
+{
+  "@react-navigation/native": "^6.x",
+  "@react-navigation/native-stack": "^6.x",
+  "@react-navigation/bottom-tabs": "^6.x",
+  "@react-navigation/drawer": "^6.x"
+}
+```
+
+### 12.2 Supabase Setup
+> **Reference:** See `lib/supabase/client.ts` for configuration
+
+### 12.3 Performance Optimization
+- Use FlatList for long lists with `getItemLayout`
+- Implement pagination (20-50 orders per page)
+- Cache images with react-native-fast-image
+- Debounce search with 300ms delay
+- Memoize expensive computations with useMemo
+
+---
+
+## 13. Mobile-Specific Considerations
+
+### 13.1 iOS
+- Use native iOS design patterns where appropriate
+- Handle safe area insets (notch, home indicator)
+- Support dark mode
+- Haptic feedback with iOS haptics API
+
+### 13.2 Android
+- Material Design components
+- Hardware back button handling
+- Support for various screen sizes and densities
+- Notification channels for different alert types
+
+### 13.3 Cross-Platform
+- Test on both platforms regularly
+- Platform-specific code when necessary
+- Consistent UX across platforms where possible
+
+### 13.4 Web
+- Expo web support with `npx expo start --web`
+- Responsive layout for desktop browsers
+- Web-compatible components in `src/components/ui/WebCompatibleComponents`
+
+---
+
+## 14. Security Considerations
+
+- Implement secure admin authentication (Supabase Auth)
+- Use RLS policies to restrict data access
+- Validate all inputs on client and server
+- Encrypt sensitive data in transit (HTTPS)
+- Log all critical actions (status changes, cancellations)
+- Implement session timeout
+- Two-factor authentication for admin accounts (optional but recommended)
+
+---
+
+## 15. Database Schema Reference
+
+> **Full documentation:** See `database/README.md`
+
+### Key Tables for Order Management:
+
+```sql
+-- Orders table with GST compliance
+CREATE TABLE orders (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  order_number TEXT UNIQUE NOT NULL,
+  status order_status DEFAULT 'pending',
+  payment_status payment_status DEFAULT 'pending',
+  delivery_slot_instance_id UUID REFERENCES delivery_slot_instances(id),
+  subtotal DECIMAL(10,2) NOT NULL,
+  cgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  sgst_amount DECIMAL(10,2) DEFAULT 0,  -- 9%
+  total_amount DECIMAL(10,2) NOT NULL,
+  delivery_address JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Order status history for audit trail
+CREATE TABLE order_status_history (
+  id UUID PRIMARY KEY,
+  order_id UUID REFERENCES orders(id),
+  status order_status NOT NULL,
+  notes TEXT,
+  updated_by UUID REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Delivery slot system
+CREATE TABLE delivery_slot_instances (
+  id UUID PRIMARY KEY,
+  slot_date DATE NOT NULL,
+  start_ts TIMESTAMP NOT NULL,
+  end_ts TIMESTAMP NOT NULL,
+  capacity INTEGER NOT NULL,
+  booked_count INTEGER DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'available'
+);
+```
+
+---
+
+## 16. Implementation Status
+
+### 16.1 Completed Components & Screens
+
+#### Order Management Service (`lib/supabase/services/orderManagement.ts`)
+**Status: ✅ Implemented**
+
+A comprehensive Supabase service centralizing all order-related operations:
+
+- **Types Defined:**
+  - `Order`, `OrderItem`, `OrderAddress`, `OrderStatus`, `PaymentStatus`
+  - `OrderWithDetails` (includes items, customer, delivery slot, status history)
+  - `OrderStatusHistory`, `CreateOrderInput`, `OrderFilters`
+
+- **Customer Operations:**
+  - `getCustomerOrders(userId, filters)` - Fetch user-specific orders with filtering
+  - `getOrderDetails(orderId, userId?)` - Retrieve single order details with ownership validation
+  - `createOrder(input)` - Create order with GST calculation, order number generation
+  - `cancelOrder(orderId, userId, reason)` - Customer cancellation with status validation
+
+- **Admin Operations:**
+  - `getAdminOrders(filters)` - Fetch all orders with extensive filtering
+  - `updateOrderStatus(orderId, newStatus, adminUserId, notes?)` - Status update with transition validation
+  - `getOrderStatistics(period)` - Aggregated order metrics (today, week, month)
+  - `getUrgentOrders()` - Orders with delivery slots within 2 hours
+  - `updatePaymentStatus(orderId, paymentStatus, paymentId?)` - Payment status updates
+  - `processRefund(orderId, refundAmount, adminUserId)` - Refund processing
+
+- **Real-time:**
+  - `subscribeToOrders(callback, filters?)` - Real-time order updates using Supabase
+
+#### OrderStatusTimeline Component (`src/components/orders/OrderStatusTimeline.tsx`)
+**Status: ✅ Implemented**
+
+A reusable visual component for order status progression:
+
+- Displays status steps: `pending` → `confirmed` → `preparing` → `out_for_delivery` → `delivered`
+- Supports both `horizontal` and `vertical` layouts
+- Shows `completed`, `current`, and `upcoming` status states
+- Integrates with `statusHistory` for timestamps
+- Special UI for `cancelled` and `refunded` terminal states
+- Exports `getStatusInfo()` helper for consistent status labels, colors, and icons
+
+#### UpdateStatusModal Component (`src/components/orders/UpdateStatusModal.tsx`)
+**Status: ✅ Implemented**
+
+Bottom sheet modal for admin status updates:
+
+- Displays current order status
+- Shows valid next status options based on current status
+- Supports optional notes for status updates
+- Toggles for customer notification (SMS/Email) and push notifications
+- Confirmation dialog for critical actions (cancel, refund)
+- Loading states and error handling
+
+#### OrderManagementScreen (`src/screens/admin/OrderManagementScreen.tsx`)
+**Status: ✅ Implemented**
+
+Admin order list screen:
+
+- **Order Fetching:** Fetches all orders using `orderManagementService.getAdminOrders`
+- **Filtering:** Filter by status (tabs) and search by order number/customer name
+- **UI:** Uses `WebCompatibleComponents` for consistent look
+- **Navigation:** Navigates to `AdminOrderDetailsScreen` on order tap
+- **Real-time:** Auto-refreshes on focus and supports pull-to-refresh
+
+#### AdminOrderDetailsScreen (`src/screens/admin/AdminOrderDetailsScreen.tsx`)
+**Status: ✅ Implemented**
+
+Comprehensive admin order management screen:
+
+- **Status Card:** Current status badge, timeline, update button
+- **Delivery Slot Card:** Date/time, countdown timer, urgent indicators
+- **Customer Info:** Name, phone, email, delivery address with tap-to-action
+- **Order Items:** Product list with images, quantities, prices
+- **Payment Summary:** Subtotal, GST breakdown, delivery, discounts, total
+- **Order History:** Status change audit trail
+- **Quick Actions:** Print invoice, call customer, get directions
+- Integrates with UpdateStatusModal for status changes
+
+#### CustomerOrderDetailsScreen (`src/screens/orders/CustomerOrderDetailsScreen.tsx`)
+**Status: ✅ Implemented**
+
+Enhanced customer order details screen:
+
+- **Status Hero:** Large status icon, order number, date
+- **Delivery Card:** Date, time slot, address preview
+- **Order Timeline:** Vertical progress with timestamps
+- **Order Items:** Product images, names, quantities, totals
+- **Bill Details:** Itemized breakdown with GST
+- **Delivery Address:** Full address with landmarks and instructions
+- **Action Buttons:** Cancel order, reorder, contact support
+- **Cancellation Info:** Reason and refund status for cancelled orders
+
+### 16.2 Navigation Updates
+
+- Added `AdminOrderDetailsScreen` to `AdminNavigator.tsx`
+- Route: `OrderDetails` with `{ orderId: string }` params
+- Components index file created at `src/components/orders/index.ts`
+
+### 16.3 Pending Implementation
+
+| Feature | Status | Priority |
+|---------|--------|----------|
+| OrderTrackingScreen (Customer) | ✅ Implemented | High |
+| Live Order Tracking (GPS) | 🚧 Planned | Medium |
+| RefundManagementScreen | 🚧 Planned | Medium |
+| Invoice PDF Generation | 🚧 Planned | Medium |
+| Push Notifications | 🚧 Planned | High |
+| Bulk Status Updates | 🚧 Planned | Low |
+| Reschedule Delivery Modal | 🚧 Planned | Medium |
+| Order Statistics Dashboard | 🚧 Partial | Medium |
+
+### 16.4 Status Transition Rules
+
+Implemented in `orderManagement.ts`:
+
+```
+pending → confirmed, cancelled
+confirmed → preparing, cancelled
+preparing → out_for_delivery, cancelled
+out_for_delivery → delivered, cancelled
+delivered → refunded
+cancelled → refunded
+refunded → (terminal state)
+```
+
+### 16.5 Recent Updates (Customer Order Management)
+**Status: ✅ Completed**
+
+- **Web Compatibility:** Resolved React Native component import errors by utilizing `WebCompatibleComponents`.
+- **Order History:** Developed `OrderHistoryScreen.tsx` with real data fetching from `orderManagementService`.
+- **Order Tracking:** Developed `OrderTrackingScreen.tsx` with real data fetching and integrated into `MainTabNavigator`.
+- **Order Details:** Enhanced `OrderDetailsScreen.tsx` with real data, reorder functionality (integrated with Cart), and cancellation logic.
+- **Authentication:** Replaced mock `useAuth` hook with actual Redux-based authentication context.
+- **Data Consistency:** Aligned frontend types with Supabase backend (snake_case properties).
+
+---
+
+*Last Updated: December 4, 2024*
+*Version: 2.2 - Updated with customer order management implementation*

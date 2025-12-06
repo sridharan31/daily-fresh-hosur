@@ -1,17 +1,17 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import {
   Alert,
   FlatList,
   Image,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+} from '../../src/components/ui/WebCompatibleComponents';
 import { useTheme } from '../../src/hooks/useTheme';
 
 // Mock offers data
@@ -50,7 +50,7 @@ const OFFERS: Offer[] = [
   {
     id: 'offer3',
     title: 'Free Express Delivery',
-    description: 'Free same-day delivery on orders above AED 75',
+    description: 'Free same-day delivery on orders above ₹75',
     discount: 'FREE DELIVERY',
     validUntil: '2025-12-31',
     category: 'Delivery',
@@ -90,7 +90,7 @@ const OFFERS: Offer[] = [
   {
     id: 'offer7',
     title: 'Bulk Order Savings',
-    description: 'Orders above AED 200 get extra 10% discount',
+    description: 'Orders above ₹200 get extra 10% discount',
     discount: '10% EXTRA',
     validUntil: '2025-11-15',
     category: 'Bulk Order',
@@ -117,8 +117,8 @@ export default function OffersScreen() {
 
   const categories = ['All', ...Array.from(new Set(OFFERS.map(offer => offer.category)))];
 
-  const filteredOffers = selectedCategory === 'All' 
-    ? offers 
+  const filteredOffers = selectedCategory === 'All'
+    ? offers
     : offers.filter(offer => offer.category === selectedCategory);
 
   const handleOfferPress = (offer: Offer) => {
@@ -196,16 +196,16 @@ export default function OffersScreen() {
         >
           <Icon name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>Special Offers</Text>
-        
+
         <View style={styles.headerRight} />
       </View>
 
       {/* Category Filter */}
       <View style={styles.filterContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryFilter}
         >
@@ -240,8 +240,8 @@ export default function OffersScreen() {
           <View style={styles.headerInfo}>
             <Icon name="local-offer" size={24} color="#4CAF50" />
             <Text style={styles.headerInfoText}>
-              {selectedCategory === 'All' 
-                ? 'Exclusive deals and discounts just for you!' 
+              {selectedCategory === 'All'
+                ? 'Exclusive deals and discounts just for you!'
                 : `${filteredOffers.length} ${selectedCategory} offers available`}
             </Text>
           </View>

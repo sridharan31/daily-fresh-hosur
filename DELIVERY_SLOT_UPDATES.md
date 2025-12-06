@@ -130,3 +130,4 @@ curl 'https://yvjxgoxrzkcjvuptblri.supabase.co/rest/v1/delivery_slot_templates' 
 3. Add validation to ensure end time is after start time
 4. Add loading states while saving slot templates
 5. Add success/error notifications after save
+

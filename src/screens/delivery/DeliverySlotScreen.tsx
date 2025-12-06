@@ -1,15 +1,15 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  Alert,
+  FlatList,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from '../../components/ui/WebCompatibleComponents';
 
 import { DeliverySlot } from '../../../lib/types/delivery';
 import Button from '../../components/common/Button';
@@ -97,7 +97,7 @@ const DATES = [
 export const DeliverySlotScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  
+
   const [selectedDate, setSelectedDate] = useState('2025-06-26');
   const [selectedSlot, setSelectedSlot] = useState<DeliverySlot | null>(null);
   const [availableSlots, setAvailableSlots] = useState<DeliverySlot[]>([]);
@@ -142,11 +142,11 @@ export const DeliverySlotScreen: React.FC = () => {
 
     Alert.alert(
       'Slot Selected',
-      `Selected: ${selectedSlot.time} on ${formatDate(selectedSlot.date)}\nDelivery charge: AED ${selectedSlot.charge.toFixed(2)}`,
+      `Selected: ${selectedSlot.time} on ${formatDate(selectedSlot.date)}\nDelivery charge: ₹${selectedSlot.charge.toFixed(2)}`,
       [
         { text: 'Change', style: 'cancel' },
-        { 
-          text: 'Continue', 
+        {
+          text: 'Continue',
           onPress: () => {
             // Navigate to next screen (e.g., checkout or delivery instructions)
             navigation.goBack();
@@ -234,7 +234,7 @@ export const DeliverySlotScreen: React.FC = () => {
         </View>
         <View style={styles.slotPrice}>
           <Text style={styles.priceText}>
-            {item.charge === 0 ? 'FREE' : `AED ${item.charge.toFixed(2)}`}
+            {item.charge === 0 ? 'FREE' : `₹${item.charge.toFixed(2)}`}
           </Text>
         </View>
       </View>
@@ -319,11 +319,11 @@ export const DeliverySlotScreen: React.FC = () => {
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>• Evening Delivery:</Text>
-            <Text style={styles.infoValue}>AED 5.00 (2 PM - 8 PM)</Text>
+            <Text style={styles.infoValue}>₹5.00 (2 PM - 8 PM)</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoLabel}>• Express Delivery:</Text>
-            <Text style={styles.infoValue}>AED 15.00 (Same day)</Text>
+            <Text style={styles.infoValue}>₹15.00 (Same day)</Text>
           </View>
         </Card>
       </ScrollView>

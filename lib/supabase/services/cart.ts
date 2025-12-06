@@ -42,7 +42,7 @@ export const cartService = {
         .select('*')
         .eq('user_id', userId)
         .eq('product_id', productId)
-        .single();
+        .maybeSingle();
 
       if (existingItem) {
         // Update quantity if product is already in cart

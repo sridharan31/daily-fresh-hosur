@@ -127,7 +127,7 @@ CREATE INDEX idx_slot_instances_type ON delivery_slot_instances(slot_type);
 Slot instances can be generated:
 - **Manually**: By admins through UI
 - **Automated**: Via cron job or Supabase function
-- **On-demand**: When customer requests slots
+- **On-demand**: When customer requests slots (implemented in checkout)
 
 ### Suggested Supabase Function
 
@@ -246,3 +246,4 @@ For issues or questions:
 - Verify RLS policies are correctly configured
 - Ensure slot instances are being generated
 - Check booking count increments on orders
+

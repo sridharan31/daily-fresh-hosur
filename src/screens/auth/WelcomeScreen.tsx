@@ -19,8 +19,12 @@ const WelcomeScreen: React.FC = () => {
     <div style={styles.container}>
       <div style={styles.overlay}>
         <div style={styles.logoContainer}>
-          <div style={styles.logo}>🥬</div>
-          <div style={styles.appName}>FreshCart</div>
+          <img
+            src={require('../../../assets/branding/Fresh_From_Hosur_Farms.png')}
+            alt="Fresh From Hosur Farms"
+            style={{ width: 200, height: 100, objectFit: 'contain', marginBottom: 20 }}
+          />
+          <div style={styles.appName}>Fresh From Hosur Farms</div>
           <div style={styles.tagline}>Fresh groceries at your doorstep</div>
         </div>
 
@@ -31,7 +35,7 @@ const WelcomeScreen: React.FC = () => {
           >
             Get Started
           </button>
-          
+
           <button
             onClick={handleSignIn}
             style={styles.secondaryButton}

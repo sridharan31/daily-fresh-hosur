@@ -3,13 +3,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useSelector } from 'react-redux';
 import { supabase } from '../../lib/supabase/client';
 import { RootState } from '../../lib/supabase/store/rootReducer';
 import { AdminLogoutModal } from '../../src/components/admin/AdminLogoutModal';
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -20,41 +20,41 @@ import {
 // Types
 export type AdminStackParamList = {
   AdminTabs: undefined;
-  
+
   // Product Management
   AddProduct: undefined;
-  EditProduct: {productId: string};
-  ProductDetails: {productId: string};
+  EditProduct: { productId: string };
+  ProductDetails: { productId: string };
   CategoryManagement: undefined;
   BulkProductUpdate: undefined;
-  
+
   // Order Management
-  OrderDetails: {orderId: string};
-  OrderTracking: {orderId: string};
+  OrderDetails: { orderId: string };
+  OrderTracking: { orderId: string };
   RefundManagement: undefined;
-  
+
   // Customer Management
-  CustomerDetails: {customerId: string};
-  CustomerCommunication: {customerId: string};
+  CustomerDetails: { customerId: string };
+  CustomerCommunication: { customerId: string };
   LoyaltyManagement: undefined;
-  
+
   // Inventory Management
   StockAlerts: undefined;
   SupplierManagement: undefined;
   StockMovement: undefined;
-  
+
   // Analytics
   SalesReports: undefined;
   CustomerReports: undefined;
   ProductReports: undefined;
   DeliveryReports: undefined;
-  
+
   // Settings
   AdminProfile: undefined;
   AdminSettings: undefined;
   AdminSecurity: undefined;
   AdminTwoFactor: undefined;
-  
+
   // Admin User Management
   AdminUserManagement: undefined;
 };
@@ -97,6 +97,8 @@ import AddProductScreen from '../../src/screens/admin/products/AddProductScreen'
 import EditProductScreen from '../../src/screens/admin/products/EditProductScreen';
 import ProductDetailsScreen from '../../src/screens/admin/products/ProductDetailsScreen';
 
+// Order Management Screens
+import AdminOrderDetailsScreen from '../screens/admin/AdminOrderDetailsScreen';
 // import OrderDetailsScreen from '../screens/admin/orders/OrderDetailsScreen';
 // import OrderTrackingScreen from '../screens/admin/orders/OrderTrackingScreen';
 // import RefundManagementScreen from '../screens/admin/orders/RefundManagementScreen';
@@ -119,7 +121,7 @@ const Tab = createBottomTabNavigator<AdminTabParamList>();
 const Drawer = createDrawerNavigator<AdminDrawerParamList>();
 
 // Custom Drawer Content
-const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({navigation}) => {
+const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({ navigation }) => {
   const auth = useSelector((state: RootState) => state.auth);
   const user = auth?.user;
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -196,7 +198,7 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({navigation}
           <Text style={drawerStyles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
-      
+
       {/* Logout Modal */}
       <AdminLogoutModal
         visible={showLogoutModal}
@@ -210,8 +212,8 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({navigation}
 export const AdminTabNavigator: React.FC = () => {
   return (
     <Tab.Navigator
-      screenOptions={({route}) => ({
-        tabBarIcon: ({focused, color, size}) => {
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
           let iconName: string;
 
           switch (route.name) {
@@ -268,7 +270,7 @@ export const AdminTabNavigator: React.FC = () => {
           elevation: 8,
           shadowColor: '#000',
           shadowOpacity: 0.1,
-          shadowOffset: {width: 0, height: -3},
+          shadowOffset: { width: 0, height: -3 },
           shadowRadius: 6,
         },
       })}
@@ -277,32 +279,32 @@ export const AdminTabNavigator: React.FC = () => {
       <Tab.Screen
         name="Dashboard"
         component={AdminDashboardScreen}
-        options={{title: 'Dashboard'}}
+        options={{ title: 'Dashboard' }}
       />
       <Tab.Screen
         name="Products"
         component={ProductManagementScreen}
-        options={{title: 'Products'}}
+        options={{ title: 'Products' }}
       />
       <Tab.Screen
         name="Orders"
         component={OrderManagementScreen}
-        options={{title: 'Orders'}}
+        options={{ title: 'Orders' }}
       />
       <Tab.Screen
         name="Customers"
         component={CustomerManagementScreen}
-        options={{title: 'Customers'}}
+        options={{ title: 'Customers' }}
       />
       <Tab.Screen
         name="Inventory"
         component={InventoryScreen}
-        options={{title: 'Inventory'}}
+        options={{ title: 'Inventory' }}
       />
       <Tab.Screen
         name="AdminUsers"
         component={AdminUserManagementScreen}
-        options={{title: 'Admin Users'}}
+        options={{ title: 'Admin Users' }}
       />
     </Tab.Navigator>
   );
@@ -336,7 +338,7 @@ const AdminNavigator: React.FC = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerShown: true, // Hide stack headers to avoid double headers
+        headerShown: false, // Hide stack headers to avoid double headers
       }}
     >
       {/* Main Admin Flow with Drawer */}
@@ -374,8 +376,8 @@ const AdminNavigator: React.FC = () => {
                   'Are you sure you want to logout?',
                   [
                     { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Logout', 
+                    {
+                      text: 'Logout',
                       style: 'destructive',
                       onPress: async () => {
                         await supabase.auth.signOut();
@@ -416,8 +418,8 @@ const AdminNavigator: React.FC = () => {
                   'Are you sure you want to logout?',
                   [
                     { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Logout', 
+                    {
+                      text: 'Logout',
                       style: 'destructive',
                       onPress: async () => {
                         await supabase.auth.signOut();
@@ -476,8 +478,8 @@ const AdminNavigator: React.FC = () => {
                   'Are you sure you want to logout?',
                   [
                     { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Logout', 
+                    {
+                      text: 'Logout',
                       style: 'destructive',
                       onPress: async () => {
                         await supabase.auth.signOut();
@@ -504,21 +506,14 @@ const AdminNavigator: React.FC = () => {
       /> */}
 
       {/* Order Management Screens */}
-      {/* <Stack.Screen
+      <Stack.Screen
         name="OrderDetails"
-        component={OrderDetailsScreen}
+        component={AdminOrderDetailsScreen}
         options={{
+          headerShown: false,
           title: 'Order Details',
         }}
       />
-
-      <Stack.Screen
-        name="OrderTracking"
-        component={OrderTrackingScreen}
-        options={{
-          title: 'Track Order',
-        }}
-      /> */}
 
       {/* <Stack.Screen
         name="RefundManagement"

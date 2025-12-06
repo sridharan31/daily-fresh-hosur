@@ -311,7 +311,7 @@ class PriceCalculatorService {
    * Calculate loyalty points based on purchase amount
    */
   calculateLoyaltyPoints(purchaseAmount: number): number {
-    // 1 point per AED spent (or equivalent in other currencies)
+    // 1 point per currency unit spent
     return Math.floor(purchaseAmount);
   }
 
@@ -319,7 +319,7 @@ class PriceCalculatorService {
    * Convert loyalty points to discount amount
    */
   convertPointsToDiscount(points: number, conversionRate = 0.01): number {
-    // Default: 100 points = 1 AED discount
+    // Default: 100 points = 1 unit discount
     return points * conversionRate;
   }
 }

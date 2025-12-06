@@ -195,7 +195,7 @@ const usePayment = (): UsePaymentReturn => {
 
       const data: PaymentData = {
         amount: order.finalAmount,
-        currency: 'AED',
+        currency: 'INR',
         orderId: order.id,
         customerId: order.userId,
         paymentMethodId: state.selectedMethod.id,
@@ -280,7 +280,7 @@ const usePayment = (): UsePaymentReturn => {
 
   const initializeStripe = useCallback(async (amount: number): Promise<string> => {
     try {
-      const clientSecret = await paymentGateway.initializePayment('stripe', amount, 'AED');
+      const clientSecret = await paymentGateway.initializePayment('stripe', amount, 'INR');
       return clientSecret;
     } catch (error: any) {
       setState(prev => ({ 
@@ -293,7 +293,7 @@ const usePayment = (): UsePaymentReturn => {
 
   const initializeRazorpay = useCallback(async (amount: number, orderId: string): Promise<any> => {
     try {
-      const options = await paymentGateway.initializePayment('razorpay', amount, 'AED');
+      const options = await paymentGateway.initializePayment('razorpay', amount, 'INR');
       return {
         ...options,
         order_id: orderId,

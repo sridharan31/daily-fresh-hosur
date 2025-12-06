@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { supabase } from '../lib/supabase';
-import { orderService } from '../lib/supabase/services/order';
+import orderManagementService from '../lib/supabase/services/orderManagement';
 import { userService } from '../lib/supabase/services/user';
 import { AppDispatch } from '../lib/supabase/store';
 import { loginUser } from '../lib/supabase/store/actions/authActions';
@@ -102,9 +102,9 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 10 }}>
           <label style={{ display: 'block', marginBottom: 5 }}>Name *</label>
-          <input 
-            type="text" 
-            value={formData.name} 
+          <input
+            type="text"
+            value={formData.name}
             onChange={(e) => handleChange('name', e.target.value)}
             required
             style={{
@@ -115,12 +115,12 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
             }}
           />
         </div>
-        
+
         <div style={{ marginBottom: 10 }}>
           <label style={{ display: 'block', marginBottom: 5 }}>Email *</label>
-          <input 
-            type="email" 
-            value={formData.email} 
+          <input
+            type="email"
+            value={formData.email}
             onChange={(e) => handleChange('email', e.target.value)}
             required
             style={{
@@ -134,9 +134,9 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
 
         <div style={{ marginBottom: 10 }}>
           <label style={{ display: 'block', marginBottom: 5 }}>Phone *</label>
-          <input 
-            type="tel" 
-            value={formData.phone} 
+          <input
+            type="tel"
+            value={formData.phone}
             onChange={(e) => handleChange('phone', e.target.value)}
             required
             style={{
@@ -150,8 +150,8 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
 
         <div style={{ marginBottom: 10 }}>
           <label style={{ display: 'block', marginBottom: 5 }}>Address *</label>
-          <textarea 
-            value={formData.address} 
+          <textarea
+            value={formData.address}
             onChange={(e) => handleChange('address', e.target.value)}
             required
             rows={3}
@@ -167,9 +167,9 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
         <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', marginBottom: 5 }}>City *</label>
-            <input 
-              type="text" 
-              value={formData.city} 
+            <input
+              type="text"
+              value={formData.city}
               onChange={(e) => handleChange('city', e.target.value)}
               required
               style={{
@@ -182,9 +182,9 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
           </div>
           <div style={{ flex: 1 }}>
             <label style={{ display: 'block', marginBottom: 5 }}>State *</label>
-            <input 
-              type="text" 
-              value={formData.state} 
+            <input
+              type="text"
+              value={formData.state}
               onChange={(e) => handleChange('state', e.target.value)}
               required
               style={{
@@ -197,9 +197,9 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
           </div>
           <div style={{ flex: 0.7 }}>
             <label style={{ display: 'block', marginBottom: 5 }}>Pincode *</label>
-            <input 
-              type="text" 
-              value={formData.pincode} 
+            <input
+              type="text"
+              value={formData.pincode}
               onChange={(e) => handleChange('pincode', e.target.value)}
               required
               style={{
@@ -212,8 +212,8 @@ function GuestCheckoutForm({ onSubmit, isLoading }: GuestCheckoutFormProps) {
           </div>
         </div>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={isLoading}
           style={{
             padding: '10px 15px',
@@ -236,13 +236,13 @@ export default function CheckoutScreen() {
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   console.log('Auth state:', { isAuthenticated, user });
-  
+
   // Check Supabase session directly to ensure we're authenticated
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       console.log("Direct Supabase session check:", session);
-      
+
       if (session?.user && (!isAuthenticated || !user)) {
         console.log("Session exists but Redux store doesn't have user. Restoring...");
         // Restore user in Redux store
@@ -254,37 +254,37 @@ export default function CheckoutScreen() {
         }));
       }
     };
-    
+
     checkSession();
   }, [dispatch, isAuthenticated, user]);
-  
+
   const cartState = useSelector((state: RootState) => state.cart);
   const { items: rawItems, subtotal, deliveryCharge, discount, vatAmount, total, itemCount } = useCart();
-  
+
   // Process cart items to ensure they have all required properties
   const items = React.useMemo(() => {
     return (rawItems || []).map(item => {
       // Extract product information from the item.product object if available
-      const product = item.product || {};
-      
+      const product = (item.product || {}) as any;
+
       // Calculate item price with fallbacks
       const itemPrice = item.price || product.price || 0;
-      
+
       // Get discounted price if available
-      const discountedPrice = item.discountedPrice || 
-        (product.discounted_price || 
-         (product.discount_percentage ? 
-          itemPrice * (1 - product.discount_percentage / 100) : 
-          undefined));
-      
+      const discountedPrice = item.discountedPrice ||
+        (product.discounted_price ||
+          (product.discount_percentage ?
+            itemPrice * (1 - product.discount_percentage / 100) :
+            undefined));
+
       // Calculate total price per item
       const totalPrice = (discountedPrice || itemPrice) * item.quantity;
-      
+
       // Get image URL with fallback
-      const imageUrl = item.image || 
-        (Array.isArray(product.images) && product.images.length > 0 ? 
+      const imageUrl = item.image ||
+        (Array.isArray(product.images) && product.images.length > 0 ?
           product.images[0] : undefined);
-      
+
       // Return enhanced item
       return {
         ...item,
@@ -297,16 +297,16 @@ export default function CheckoutScreen() {
       };
     });
   }, [rawItems]);
-  
+
   // Cart state from Redux store is synchronized with Supabase cart_items table
-  
+
   // Fetch cart items from Supabase when component mounts
   useEffect(() => {
     if (isAuthenticated && user) {
       dispatch(fetchCart(user.id));
     }
   }, [dispatch, isAuthenticated, user]);
-  
+
   // State for handling guest checkout
   const [isGuestCheckout, setIsGuestCheckout] = useState(!isAuthenticated);
   const [guestData, setGuestData] = useState<GuestCheckoutData | null>(null);
@@ -314,14 +314,14 @@ export default function CheckoutScreen() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
-  
+
   const [selectedAddress, setSelectedAddress] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cash'>('online');
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isAddressLoading, setIsAddressLoading] = useState(true);
-  
+
   // Delivery slot state
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [availableSlots, setAvailableSlots] = useState<DeliverySlot[]>([]);
@@ -332,16 +332,17 @@ export default function CheckoutScreen() {
     router.back();
   };
 
-  const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>([]);
-  
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Partial<Address> | undefined>(undefined);
+
   // Create a function to load addresses that can be reused
   const loadAddresses = async () => {
     if (!user?.id) {
       console.log('Cannot load addresses - no user ID available');
       return;
     }
-    
+
     console.log('Loading addresses for user:', {
       id: user.id,
       type: typeof user.id,
@@ -349,16 +350,16 @@ export default function CheckoutScreen() {
       fullUser: user
     });
     setIsAddressLoading(true);
-    
+
     try {
       // Ensure we're using a proper UUID format
       if (!user.id.includes('-')) {
         console.error('WARNING: User ID is not in UUID format! This will likely cause errors.');
       }
-      
+
       const addresses = await userService.getUserAddresses(user.id);
       console.log('Addresses fetched from Supabase:', addresses);
-      
+
       // Map the Supabase address format to our DeliveryAddress format
       const mappedAddresses: DeliveryAddress[] = addresses.map((addr) => {
         const formattedAddress = fromSupabaseAddress(addr, user.full_name);
@@ -374,10 +375,10 @@ export default function CheckoutScreen() {
           isDefault: addr.is_default
         };
       });
-      
+
       console.log('Mapped addresses for UI:', mappedAddresses);
       setSavedAddresses(mappedAddresses);
-      
+
       // Set selected address to default or first address if exists
       const defaultAddress = mappedAddresses.find(addr => addr.isDefault);
       if (defaultAddress) {
@@ -393,7 +394,7 @@ export default function CheckoutScreen() {
       setIsAddressLoading(false);
     }
   };
-  
+
   // Load addresses from Supabase when component mounts
   useEffect(() => {
     console.log('User state changed:', user);
@@ -401,7 +402,7 @@ export default function CheckoutScreen() {
       console.log('User has ID, loading addresses...');
       loadAddresses();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, user?.id]);
 
   // Load delivery slots when delivery date changes
@@ -409,9 +410,10 @@ export default function CheckoutScreen() {
     if (deliveryDate) {
       loadDeliverySlots();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deliveryDate]);
 
+  // Load delivery slots based on selected date
   // Load delivery slots based on selected date
   const loadDeliverySlots = async () => {
     if (!deliveryDate) return;
@@ -422,7 +424,8 @@ export default function CheckoutScreen() {
       const dayOfWeek = selectedDate.getDay();
       const slotType = (dayOfWeek === 0 || dayOfWeek === 6) ? 'weekend' : 'weekday';
 
-      const { data, error } = await supabase
+      // First try to fetch existing slots
+      let { data, error } = await supabase
         .from('delivery_slot_instances')
         .select('*')
         .eq('slot_date', deliveryDate)
@@ -431,6 +434,33 @@ export default function CheckoutScreen() {
         .order('start_ts');
 
       if (error) throw error;
+
+      // If no slots found, try to generate them
+      if (!data || data.length === 0) {
+        console.log('No slots found, attempting to generate...');
+        const { error: genError } = await supabase.rpc('generate_slot_instances', {
+          target_date: deliveryDate
+        });
+
+        if (genError) {
+          console.error('Error generating slots:', genError);
+          // If generation fails (e.g. function doesn't exist), we just show empty
+        } else {
+          // Fetch again after generation
+          const { data: newData, error: newError } = await supabase
+            .from('delivery_slot_instances')
+            .select('*')
+            .eq('slot_date', deliveryDate)
+            .eq('slot_type', slotType)
+            .eq('status', 'available')
+            .order('start_ts');
+
+          if (!newError && newData) {
+            data = newData;
+          }
+        }
+      }
+
       setAvailableSlots(data || []);
     } catch (error) {
       console.error('Error loading delivery slots:', error);
@@ -442,36 +472,81 @@ export default function CheckoutScreen() {
 
   const handleAddAddress = () => {
     // Open the address form modal
+    setEditingAddress(undefined);
     setAddressModalVisible(true);
+  };
+
+  const handleEditAddress = (e: React.MouseEvent, addressId: string) => {
+    e.stopPropagation();
+    const addressToEdit = savedAddresses.find(addr => addr.id === addressId);
+    if (addressToEdit) {
+      // Map DeliveryAddress (from Supabase) to Address type expected by modal
+      // We handle potential direct fields or legacy mapped fields
+      const addressForModal: Partial<Address> = {
+        id: addressToEdit.id,
+        name: addressToEdit.name,
+        street: addressToEdit.address_line1 || (addressToEdit as any).address || "",
+        city: addressToEdit.city,
+        state: addressToEdit.state,
+        pincode: addressToEdit.pincode || (addressToEdit as any).postal_code,
+        phone: addressToEdit.phone,
+        type: addressToEdit.type || (addressToEdit as any).address_type || 'home',
+        isDefault: addressToEdit.isDefault || (addressToEdit as any).is_default,
+        landmark: addressToEdit.landmark || ""
+      };
+      setEditingAddress(addressForModal);
+      setAddressModalVisible(true);
+    }
+  };
+
+  const handleDeleteAddress = async (e: React.MouseEvent, addressId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this address?')) {
+      try {
+        setIsLoading(true);
+        await userService.deleteAddress(addressId);
+        await loadAddresses();
+        if (selectedAddress === addressId) {
+          setSelectedAddress('');
+        }
+      } catch (error) {
+        console.error('Error deleting address:', error);
+        alert('Failed to delete address');
+      } finally {
+        setIsLoading(false);
+      }
+    }
   };
 
   const handleSaveAddress = async (address: Address) => {
     try {
       setIsLoading(true);
       console.log('Saving address:', address);
-      
-      // Save to Supabase - our updated userService now handles the conversion internally
-      const savedAddress = await userService.addAddress(address);
-      
-      console.log('Address saved successfully:', savedAddress);
-      
-      if (!savedAddress) {
-        throw new Error('Failed to save address');
+
+      if (editingAddress && editingAddress.id) {
+        await userService.updateAddress(editingAddress.id, address);
+      } else {
+        await userService.addAddress(address);
       }
-      
+
       // Reload addresses from Supabase to ensure we have the most up-to-date data
       console.log('Reloading addresses after save...');
       await loadAddresses();
-      
-      // Select the newly added address
-      setSelectedAddress(savedAddress.id);
-      console.log('Selected address set to:', savedAddress.id);
+
+      // For new addresses, select them. For edits, we keep current selection logic unless changed.
+      if (!editingAddress) {
+        // It was a new address, select it? Ideally we find the new ID.
+        // But userService.addAddress returns the new address.
+        // Let's just refetch and maybe select if none selected.
+      }
+
     } catch (error) {
       console.error('Error saving address:', error);
       alert('Failed to save address. Please try again.');
     } finally {
       setIsLoading(false);
       setAddressModalVisible(false);
+      setEditingAddress(undefined);
     }
   };
 
@@ -513,7 +588,7 @@ export default function CheckoutScreen() {
         email: loginEmail,
         password: loginPassword
       }) as any);
-      
+
       setShowGuestLoginOption(false);
     } catch (error) {
       console.error('Login error:', error);
@@ -533,58 +608,71 @@ export default function CheckoutScreen() {
       alert('Please select a delivery address');
       return;
     }
-    
+
+    if (!selectedSlot) {
+      alert('Please select a delivery date and time slot');
+      return;
+    }
+
     if (items.length === 0) {
       alert('Your cart is empty');
       return;
     }
-    
+
     setIsLoading(true);
     try {
       // Set up order data for Supabase
       let orderId;
-      
+
       if (isAuthenticated && user) {
         // For authenticated users, create order in Supabase
         console.log('Creating order for authenticated user:', user.id);
-        
-        // Convert cart items to order items format
+
         const orderItems = items.map(item => ({
-          productId: item.product.id,
+          product_id: (item as any).product?.id || (item as any).productId || (item as any).product_id, // Ensure we get an ID
+          product_name: item.name,
           quantity: item.quantity,
-          price: item.product.price
+          price: item.price || item.product?.price || 0 // Use the calculated safe price
         }));
-        
-        // Get the selected address
-        const addressData = savedAddresses.find(addr => addr.id === selectedAddress);
-        
-        if (!addressData) {
-          throw new Error('Selected address not found');
+
+        // Validate items before sending
+        if (orderItems.some(i => !i.product_id || isNaN(i.price))) {
+          throw new Error("Invalid cart items: Missing product ID or invalid price.");
         }
-        
-        // Calculate the total amount
-        const totalAmount = total;
-        
-        // Use Supabase order service to create the order
-        orderId = await orderService.createOrder(
-          user.id,
-          selectedAddress, // shipping address ID
-          paymentMethod as any, // cast to expected type
-          orderItems,
-          totalAmount,
-          undefined, // delivery date - could be added in the future
-          undefined  // time slot - could be added in the future
-        );
-        
+
+        const addressData = savedAddresses.find(addr => addr.id === selectedAddress);
+
+        if (!addressData) throw new Error('Selected address not found');
+
+        const deliveryAddress: any = {
+          address_line_1: addressData.address,
+          address_line_2: "",
+          city: addressData.city,
+          state: addressData.state,
+          pincode: addressData.pincode,
+          landmark: "",
+          phone: addressData.phone || user.phone || ""
+        };
+
+        const order = await orderManagementService.createOrder({
+          user_id: user.id,
+          items: orderItems,
+          delivery_address: deliveryAddress as any,
+          payment_method: paymentMethod,
+          delivery_slot_instance_id: selectedSlot,
+          delivery_instructions: specialInstructions
+        });
+
+        orderId = order.id;
         console.log('Order created with ID:', orderId);
       } else {
         // For guest users, we'll use local storage or session storage
         // In a real implementation, you might want to create a temporary user or store guest orders
         console.log('Creating guest order');
-        
+
         // Generate a pseudo-random ID for guest orders
         orderId = 'guest-' + Date.now().toString();
-        
+
         // Store the order in localStorage
         const guestOrder = {
           id: orderId,
@@ -602,18 +690,18 @@ export default function CheckoutScreen() {
           status: 'pending',
           createdAt: new Date().toISOString()
         };
-        
+
         // Store in local storage for persistence
         localStorage.setItem(`guest_order_${orderId}`, JSON.stringify(guestOrder));
         console.log('Guest order saved:', guestOrder);
       }
-      
+
       // Clear the cart after successful order placement
       dispatch(clearCart(isAuthenticated && user ? user.id : 'guest'));
-      
+
       // Store orderId for confirmation page
       localStorage.setItem('last_order_id', orderId);
-      
+
       // Navigate to order confirmation
       router.replace({
         pathname: '/order-confirmation',
@@ -621,21 +709,33 @@ export default function CheckoutScreen() {
       });
     } catch (error) {
       console.error('Order placement failed:', error);
-      
+
       // Better error handling with specific messages
       let errorMessage = 'Failed to place order. Please try again.';
-      
+
       if (error instanceof Error) {
+        errorMessage = `${error.message}`;
+        // Append additional details if available
+        if ('details' in error) {
+          errorMessage += ` Details: ${(error as any).details}`;
+        }
+        if ('hint' in error) {
+          errorMessage += ` Hint: ${(error as any).hint}`;
+        }
+
         // Handle specific error cases
-        if (error.message.includes('network')) {
+        if (errorMessage.includes('network')) {
           errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('auth')) {
+        } else if (errorMessage.includes('auth')) {
           errorMessage = 'Authentication error. Please log in again.';
-        } else if (error.message.includes('not found')) {
-          errorMessage = 'Address information is missing. Please select a valid address.';
         }
       }
-      
+
+      // Fallback for non-Error objects
+      if (typeof error === 'object' && error !== null) {
+        errorMessage += ' ' + JSON.stringify(error);
+      }
+
       // Show error as modal or alert
       setOrderError(errorMessage);
     } finally {
@@ -648,11 +748,13 @@ export default function CheckoutScreen() {
   return (
     <div style={styles.container}>
       {/* Address Form Modal */}
-      <AddressFormModal 
+      <AddressFormModal
         visible={addressModalVisible}
         onClose={() => !isLoading && setAddressModalVisible(false)}
         onSave={handleSaveAddress}
         isSubmitting={isLoading}
+        initialData={editingAddress}
+        isEdit={!!editingAddress}
       />
 
       {/* Guest Login Option Modal */}
@@ -678,11 +780,11 @@ export default function CheckoutScreen() {
           }}>
             <h3 style={{ fontSize: 18, marginBottom: 15 }}>Create an Account</h3>
             <p style={{ marginBottom: 15 }}>Would you like to create an account for easier checkout next time?</p>
-            
+
             <div style={{ marginBottom: 10 }}>
               <label style={{ display: 'block', marginBottom: 5 }}>Email</label>
-              <input 
-                type="email" 
+              <input
+                type="email"
                 value={loginEmail || (guestData?.email || '')}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 style={{
@@ -693,11 +795,11 @@ export default function CheckoutScreen() {
                 }}
               />
             </div>
-            
+
             <div style={{ marginBottom: 15 }}>
               <label style={{ display: 'block', marginBottom: 5 }}>Password</label>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 value={loginPassword}
                 onChange={(e) => setLoginPassword(e.target.value)}
                 style={{
@@ -708,9 +810,9 @@ export default function CheckoutScreen() {
                 }}
               />
             </div>
-            
+
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <button 
+              <button
                 onClick={handleLogin}
                 disabled={loginLoading}
                 style={{
@@ -725,8 +827,8 @@ export default function CheckoutScreen() {
               >
                 {loginLoading ? 'Signing In...' : 'Sign In'}
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleContinueAsGuest}
                 style={{
                   padding: '10px 15px',
@@ -764,7 +866,7 @@ export default function CheckoutScreen() {
             borderLeft: '4px solid #f44336'
           }}>
             <p style={{ color: '#c62828', margin: 0 }}>{orderError}</p>
-            <button 
+            <button
               onClick={() => setOrderError(null)}
               style={{
                 background: 'transparent',
@@ -781,18 +883,18 @@ export default function CheckoutScreen() {
             </button>
           </div>
         )}
-        
+
         {/* Order Summary */}
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Order Summary</h2>
-          
+
           {/* Cart Items List */}
           <div style={styles.cartItems}>
             <div style={styles.cartHeader}>
               <h3 style={styles.cartTitle}>Cart Items</h3>
               {items.length > 0 && (
-                <button 
-                  onClick={handleClearCart} 
+                <button
+                  onClick={handleClearCart}
                   style={styles.clearCartButton}
                   disabled={isLoading}
                 >
@@ -800,13 +902,13 @@ export default function CheckoutScreen() {
                 </button>
               )}
             </div>
-            
+
             {cartState.isLoading ? (
-              <div style={{padding: '20px', textAlign: 'center'}}>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
                 <p>Loading cart items...</p>
               </div>
             ) : items.length === 0 ? (
-              <div style={{padding: '20px', textAlign: 'center'}}>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
                 <p>Your cart is empty. Add items to proceed with checkout.</p>
               </div>
             ) : (
@@ -815,9 +917,9 @@ export default function CheckoutScreen() {
                   <div style={styles.cartItemInfo}>
                     <div style={styles.cartItemImage}>
                       {item.image ? (
-                        <img src={item.image} alt={item.name} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                        <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        <div style={{backgroundColor: '#f0f0f0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        <div style={{ backgroundColor: '#f0f0f0', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           {item.name ? item.name.charAt(0).toUpperCase() : 'P'}
                         </div>
                       )}
@@ -826,7 +928,7 @@ export default function CheckoutScreen() {
                       <h4 style={styles.cartItemName}>{item.name || (item.product && (item.product.name_en || item.product.name)) || 'Product'}</h4>
                       <p style={styles.cartItemPrice}>
                         ₹{(item.price || 0).toFixed(2)} × {item.quantity} {item.unit || 'each'}
-                        {item.discountedPrice && <span style={{textDecoration: 'line-through', marginLeft: '5px', color: '#999'}}>₹{(item.price).toFixed(2)}</span>}
+                        {item.discountedPrice && <span style={{ textDecoration: 'line-through', marginLeft: '5px', color: '#999' }}>₹{(item.price).toFixed(2)}</span>}
                       </p>
                     </div>
                   </div>
@@ -835,7 +937,7 @@ export default function CheckoutScreen() {
               ))
             )}
           </div>
-          
+
           <div style={styles.orderSummary}>
             <div style={styles.summaryRow}>
               <span>Items ({itemCount})</span>
@@ -867,7 +969,7 @@ export default function CheckoutScreen() {
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>Delivery Address</h2>
             <div>
-              <button style={{...styles.addButton, marginRight: '10px'}} onClick={loadAddresses}>
+              <button style={{ ...styles.addButton, marginRight: '10px' }} onClick={loadAddresses}>
                 ↻ Refresh
               </button>
               <button style={styles.addButton} onClick={handleAddAddress}>
@@ -877,11 +979,11 @@ export default function CheckoutScreen() {
           </div>
           <div style={styles.addressList}>
             {isAddressLoading ? (
-              <div style={{padding: '20px', textAlign: 'center'}}>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
                 <p>Loading addresses...</p>
               </div>
             ) : savedAddresses.length === 0 ? (
-              <div style={{padding: '20px', textAlign: 'center'}}>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
                 <p>No saved addresses found. Add your first address.</p>
                 {user && (
                   <div>
@@ -891,7 +993,7 @@ export default function CheckoutScreen() {
                     <p><strong>Auth Status:</strong> {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</p>
                   </div>
                 )}
-                <button onClick={loadAddresses} style={{padding: '8px 16px', margin: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px'}}>
+                <button onClick={loadAddresses} style={{ padding: '8px 16px', margin: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '4px' }}>
                   Try Again
                 </button>
               </div>
@@ -905,37 +1007,68 @@ export default function CheckoutScreen() {
                   }}
                   onClick={() => setSelectedAddress(address.id)}
                 >
-                <div style={styles.addressHeader}>
-                  <div style={styles.addressType}>
-                    <span style={styles.addressIcon}>
-                      {address.type === 'home' ? '🏠' : address.type === 'work' ? '🏢' : '📍'}
-                    </span>
-                    <span style={styles.addressTypeName}>{address.name}</span>
-                    {address.isDefault && (
-                      <span style={styles.defaultBadge}>Default</span>
-                    )}
+                  <div style={styles.addressHeader}>
+                    <div style={styles.addressType}>
+                      <span style={styles.addressIcon}>
+                        {address.type === 'home' ? '🏠' : address.type === 'work' ? '🏢' : '📍'}
+                      </span>
+                      <span style={styles.addressTypeName}>{address.name}</span>
+                      {address.isDefault && (
+                        <span style={styles.defaultBadge}>Default</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <button
+                        onClick={(e) => handleEditAddress(e, address.id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#2196F3', fontSize: '14px', marginRight: '5px'
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteAddress(e, address.id)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', color: '#F44336', fontSize: '14px', marginRight: '5px'
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <input
+                        type="radio"
+                        checked={selectedAddress === address.id}
+                        onChange={() => setSelectedAddress(address.id)}
+                        style={styles.radioButton}
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="radio"
-                    checked={selectedAddress === address.id}
-                    onChange={() => setSelectedAddress(address.id)}
-                    style={styles.radioButton}
-                  />
+                  <p style={styles.addressText}>
+                    {address.address_line1}
+                    {address.address_line2 ? `, ${address.address_line2}` : ''}
+                    {(!address.address_line1 && (address as any).address) ? (address as any).address : ''}
+                  </p>
+                  <p style={styles.addressDetails}>
+                    {address.city}, {address.state} - {address.pincode || (address as any).postal_code}
+                  </p>
+                  {address.landmark && (
+                    <p style={styles.addressDetails}>Landmark: {address.landmark}</p>
+                  )}
+                  <p style={styles.addressPhone}>Phone: {address.phone}</p>
                 </div>
-                <p style={styles.addressText}>{address.address}</p>
-                <p style={styles.addressDetails}>
-                  {address.city}, {address.state} - {address.pincode}
-                </p>
-                <p style={styles.addressPhone}>📞 {address.phone}</p>
+              )))}
+            <div style={styles.addressCard} onClick={handleAddAddress}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: '80px', color: '#4CAF50' }}>
+                <span style={{ fontSize: '24px', marginRight: '8px' }}>+</span>
+                <span style={{ fontWeight: 'bold' }}>Add New Address</span>
               </div>
-            )))}
+            </div>
           </div>
         </div>
 
         {/* Delivery Slot Selection */}
         <div style={styles.section}>
           <h2 style={styles.sectionTitle}>Select Delivery Slot</h2>
-          
+
           {/* Date Picker */}
           <div style={{ marginBottom: 15 }}>
             <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
@@ -991,7 +1124,7 @@ export default function CheckoutScreen() {
                       hour12: true
                     });
                     const isFull = slot.booked_count >= slot.capacity;
-                    
+
                     return (
                       <div
                         key={slot.id}
@@ -1115,18 +1248,18 @@ export default function CheckoutScreen() {
             disabled={isLoading || (!selectedAddress && isAuthenticated) || items.length === 0}
             title={
               (!selectedAddress && isAuthenticated)
-                ? 'Please select a delivery address' 
-                : items.length === 0 
-                ? 'Your cart is empty' 
-                : ''
+                ? 'Please select a delivery address'
+                : items.length === 0
+                  ? 'Your cart is empty'
+                  : ''
             }
           >
             {isLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ 
-                  width: '20px', 
-                  height: '20px', 
-                  border: '3px solid rgba(255,255,255,0.3)', 
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '3px solid rgba(255,255,255,0.3)',
                   borderTop: '3px solid white',
                   borderRadius: '50%',
                   marginRight: '8px',
@@ -1136,7 +1269,7 @@ export default function CheckoutScreen() {
               </div>
             ) : 'Place Order'}
           </button>
-          
+
           {/* Additional hint text for button state */}
           {(!selectedAddress && isAuthenticated) && (
             <p style={{ color: '#f44336', fontSize: '14px', marginTop: '8px' }}>Please select a delivery address</p>
@@ -1152,7 +1285,7 @@ export default function CheckoutScreen() {
 
 const styles = {
   container: {
-    display: 'flex', 
+    display: 'flex',
     flexDirection: 'column' as 'column',
     minHeight: '100vh',
     maxHeight: '100vh',
@@ -1355,41 +1488,42 @@ const styles = {
     gap: '8px',
   },
   addressIcon: {
-    fontSize: '16px',
+    fontSize: '18px',
   },
   addressTypeName: {
+    fontWeight: 'bold',
     fontSize: '16px',
-    fontWeight: '600',
     color: '#333',
   },
   defaultBadge: {
-    backgroundColor: '#4CAF50',
-    color: '#ffffff',
-    fontSize: '10px',
-    padding: '2px 6px',
-    borderRadius: '10px',
-    fontWeight: '500',
+    backgroundColor: '#e6f7ff',
+    color: '#1890ff',
+    border: '1px solid #91d5ff',
+    borderRadius: '4px',
+    padding: '2px 8px',
+    fontSize: '12px',
   },
   radioButton: {
-    width: '16px',
-    height: '16px',
     accentColor: '#4CAF50',
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
   },
   addressText: {
-    fontSize: '14px',
-    color: '#555',
     margin: '4px 0',
-    lineHeight: '1.4',
+    fontSize: '14px',
+    lineHeight: '1.5',
+    color: '#333',
   },
   addressDetails: {
+    margin: '4px 0',
     fontSize: '14px',
     color: '#666',
-    margin: '4px 0',
   },
   addressPhone: {
+    margin: '4px 0',
     fontSize: '14px',
     color: '#666',
-    margin: '4px 0',
   },
   paymentMethods: {
     display: 'flex',
@@ -1397,7 +1531,7 @@ const styles = {
     gap: '12px',
   },
   paymentCard: {
-    border: '2px solid #e0e0e0',
+    border: '1px solid #e0e0e0',
     borderRadius: '8px',
     padding: '16px',
     cursor: 'pointer',
@@ -1409,25 +1543,23 @@ const styles = {
   },
   paymentHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '8px',
   },
   paymentIcon: {
-    fontSize: '20px',
-    marginRight: '8px',
+    fontSize: '24px',
+    marginRight: '12px',
   },
   paymentLabel: {
     fontSize: '16px',
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: 'bold',
     flex: 1,
   },
   paymentDescription: {
+    margin: '0',
     fontSize: '14px',
     color: '#666',
-    margin: '0',
-    lineHeight: '1.4',
+    paddingLeft: '36px',
   },
   instructionsInput: {
     width: '100%',

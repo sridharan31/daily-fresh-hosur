@@ -1,14 +1,15 @@
 // app/screens/SplashScreen.tsx - React Native Compatible Version
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { DailyFreshLogo } from '../components/branding/DailyFreshLogo';
 
 const SplashScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logo}>🥬</Text>
-          <Text style={styles.appName}>FreshCart</Text>
+          <DailyFreshLogo width={200} height={100} variant="full" />
+          <Text style={styles.appName}>Fresh From Hosur Farms</Text>
         </View>
 
         <View style={styles.loadingContainer}>

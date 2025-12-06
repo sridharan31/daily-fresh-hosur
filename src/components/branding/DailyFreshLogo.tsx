@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Image, StyleSheet, View } from '../ui/WebCompatibleComponents';
 
 interface DailyFreshLogoProps {
   width?: number;
@@ -14,80 +14,53 @@ export const DailyFreshLogo: React.FC<DailyFreshLogoProps> = ({
   showText = true,
   variant = 'full'
 }) => {
+  const logoSource = require('../../../assets/branding/Fresh_From_Hosur_Farms.png');
+
   if (variant === 'icon') {
+    // For icon variant, show a square/circular version
+    const iconSize = Math.min(width, height);
     return (
-      <View style={{
-        width: width,
-        height: height,
-        backgroundColor: '#4CAF50',
-        borderRadius: width / 2,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-      }}>
-        <View style={{
-          width: width * 0.6,
-          height: width * 0.6,
-          backgroundColor: '#FFFFFF',
-          borderRadius: (width * 0.6) / 2,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <View style={{
-            width: width * 0.3,
-            height: width * 0.3,
-            backgroundColor: '#4CAF50',
-            borderRadius: (width * 0.3) / 2,
-          }} />
-        </View>
+      <View style={[styles.iconContainer, { width: iconSize, height: iconSize }]}>
+        <Image
+          source={logoSource}
+          style={{
+            width: iconSize,
+            height: iconSize,
+            resizeMode: 'contain',
+          }}
+          accessibilityLabel="Fresh From Hosur Farms Logo"
+        />
       </View>
     );
   }
 
+  // Full variant
   return (
-    <View style={{
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: width,
-      height: height,
-    }}>
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#4CAF50',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
-      }}>
-        <View style={{
-          width: 40,
-          height: 40,
-          backgroundColor: '#FFFFFF',
-          borderRadius: 20,
-          marginRight: showText ? 12 : 0,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <View style={{
-            width: 20,
-            height: 20,
-            backgroundColor: '#4CAF50',
-            borderRadius: 10,
-          }} />
-        </View>
-      </View>
+    <View style={[styles.container, { width, height }]}>
+      <Image
+        source={logoSource}
+        style={{
+          width: width,
+          height: height,
+          resizeMode: 'contain',
+        }}
+        accessibilityLabel="Fresh From Hosur Farms Logo"
+      />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+});
 
 export default DailyFreshLogo;

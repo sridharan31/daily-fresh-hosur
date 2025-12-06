@@ -2,11 +2,11 @@ import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '../../lib/supabase/store';
 import {
-  addToCart,
-  clearCart,
-  fetchCart,
-  removeFromCart,
-  updateCartItemQuantity
+    addToCart,
+    clearCart,
+    fetchCart,
+    removeFromCart,
+    updateCartItemQuantity
 } from '../../lib/supabase/store/actions/cartActions';
 import { RootState } from '../../lib/supabase/store/rootReducer';
 import { Product } from '../../lib/types/product';
@@ -249,4 +249,5 @@ export const useCart = () => {
   };
 };
 
+export const useCartEnhanced = useCart;
 export default useCart;

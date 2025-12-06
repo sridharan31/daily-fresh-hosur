@@ -1,280 +1,136 @@
- // src/screens/admin/OrderManagementScreen.tsx
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
+// src/screens/admin/OrderManagementScreen.tsx
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../../lib/store';
-import {
-    fetchAdminOrders,
-    updateOrderStatus
-} from '../../../lib/store/slices/adminSlice';
-import { AdminOrder } from '../../../lib/types/admin';
-import { OrderStatus } from '../../../lib/types/order';
 
-interface OrderItem {
-  id: string;
-  productName: string;
-  quantity: number;
-  price: number;
-  unit: string;
-}
+import orderManagementService, { OrderStatus, OrderWithDetails } from '../../../lib/supabase/services/orderManagement';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from '../../components/ui/WebCompatibleComponents';
 
 const OrderManagementScreen: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const {orders, ordersLoading} = useSelector((state: RootState) => state.admin);
-  
-  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const navigation = useNavigation();
+  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const statusOptions = [
-    {key: 'all', label: 'All Orders', color: '#666'},
-    {key: 'pending', label: 'Pending', color: '#FF9800'},
-    {key: 'confirmed', label: 'Confirmed', color: '#2196F3'},
-    {key: 'processing', label: 'Processing', color: '#9C27B0'},
-    {key: 'out_for_delivery', label: 'Out for Delivery', color: '#FF5722'},
-    {key: 'delivered', label: 'Delivered', color: '#4CAF50'},
-    {key: 'cancelled', label: 'Cancelled', color: '#F44336'},
+  const statusOptions: { key: OrderStatus | 'all'; label: string; color: string }[] = [
+    { key: 'all', label: 'All Orders', color: '#666' },
+    { key: 'pending', label: 'Pending', color: '#FF9800' },
+    { key: 'confirmed', label: 'Confirmed', color: '#2196F3' },
+    { key: 'preparing', label: 'Preparing', color: '#9C27B0' },
+    { key: 'out_for_delivery', label: 'Out for Delivery', color: '#FF5722' },
+    { key: 'delivered', label: 'Delivered', color: '#4CAF50' },
+    { key: 'cancelled', label: 'Cancelled', color: '#F44336' },
+    { key: 'refunded', label: 'Refunded', color: '#757575' },
   ];
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadOrders();
+    }, [])
+  );
 
-  const loadOrders = useCallback(() => {
-    dispatch(fetchAdminOrders({}));
-  }, [dispatch]);
+  const loadOrders = async () => {
+    try {
+      setLoading(true);
+      // Fetch all orders for admin
+      // In a real app, we might want pagination or server-side filtering
+      const allOrders = await orderManagementService.getAdminOrders({});
+      setOrders(allOrders);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      Alert.alert('Error', 'Failed to load orders');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
     await loadOrders();
     setRefreshing(false);
-  }, [loadOrders]);
+  };
 
-  const filteredOrders = orders.filter((order: AdminOrder) => {
-    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch =
+      order.order_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.customer?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+
     const matchesStatus = selectedStatus === 'all' || order.status === selectedStatus;
+
     return matchesSearch && matchesStatus;
   });
 
-  const getStatusColor = (status: string) => {
-    const statusOption = statusOptions.find(option => option.key === status);
-    return statusOption?.color || '#666';
+  const getStatusColor = (status: OrderStatus) => {
+    const option = statusOptions.find(o => o.key === status);
+    return option?.color || '#666';
   };
 
-  const handleStatusUpdate = (orderId: string, newStatus: string) => {
-    Alert.alert(
-      'Update Order Status',
-      `Change status to ${newStatus}?`,
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Update',
-          onPress: () => dispatch(updateOrderStatus({orderId, status: newStatus as OrderStatus})),
-        },
-      ]
-    );
+  const handleOrderPress = (order: OrderWithDetails) => {
+    // @ts-ignore - Navigation types need update
+    navigation.navigate('OrderDetails', { orderId: order.id });
   };
 
-  const handleOrderDetails = (order: AdminOrder) => {
-    setSelectedOrder(order);
-    setShowOrderDetails(true);
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const renderStatusBadge = (status: string) => (
-    <View style={[styles.statusBadge, {backgroundColor: getStatusColor(status)}]}>
-      <Text style={styles.statusText}>{status.replace('_', ' ').toUpperCase()}</Text>
+  const renderStatusBadge = (status: OrderStatus) => (
+    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
+      <Text style={styles.statusText}>{status.replace(/_/g, ' ').toUpperCase()}</Text>
     </View>
   );
 
-  const renderOrderItem = ({item}: {item: AdminOrder}) => (
+  const renderOrderItem = ({ item }: { item: OrderWithDetails }) => (
     <TouchableOpacity
       style={styles.orderCard}
-      onPress={() => handleOrderDetails(item)}
+      onPress={() => handleOrderPress(item)}
     >
       <View style={styles.orderHeader}>
-        <Text style={styles.orderId}>#{item.id}</Text>
+        <Text style={styles.orderId}>#{item.order_number}</Text>
         {renderStatusBadge(item.status)}
       </View>
-      
+
       <View style={styles.orderInfo}>
-        <Text style={styles.customerName}>{item.customerName}</Text>
+        <Text style={styles.customerName}>{item.customer?.full_name || 'Unknown Customer'}</Text>
         <Text style={styles.orderDate}>
-          {new Date(item.createdAt).toLocaleDateString()}
+          {formatDate(item.created_at)}
         </Text>
       </View>
-      
+
       <View style={styles.orderDetails}>
-        <Text style={styles.itemCount}>{item.items.length} items</Text>
-        <Text style={styles.orderAmount}>₹{item.totalAmount}</Text>
-      </View>
-      
-      <View style={styles.deliveryInfo}>
-        <Icon name="schedule" size={16} color="#666" />
-        <Text style={styles.deliverySlot}>
-          {item.deliverySlot.date} • {item.deliverySlot.time}
+        <Text style={styles.itemCount}>
+          {item.items?.length || 0} items
         </Text>
+        <Text style={styles.orderAmount}>₹{item.total_amount.toFixed(2)}</Text>
       </View>
-      
-      <View style={styles.orderActions}>
-        {item.status === 'pending' && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleStatusUpdate(item.id, 'confirmed')}
-          >
-            <Text style={styles.actionButtonText}>Confirm</Text>
-          </TouchableOpacity>
-        )}
-        {item.status === 'confirmed' && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleStatusUpdate(item.id, 'processing')}
-          >
-            <Text style={styles.actionButtonText}>Process</Text>
-          </TouchableOpacity>
-        )}
-        {item.status === 'processing' && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleStatusUpdate(item.id, 'out_for_delivery')}
-          >
-            <Text style={styles.actionButtonText}>Ship</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
 
-  const renderOrderDetailsModal = () => (
-    <Modal
-      visible={showOrderDetails}
-      animationType="slide"
-      onRequestClose={() => setShowOrderDetails(false)}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.modalTitle}>Order Details</Text>
-          <TouchableOpacity onPress={() => setShowOrderDetails(false)}>
-            <Icon name="close" size={24} color="#333" />
-          </TouchableOpacity>
+      {item.delivery_slot && (
+        <View style={styles.deliveryInfo}>
+          <Icon name="schedule" size={16} color="#666" />
+          <Text style={styles.deliverySlot}>
+            {new Date(item.delivery_slot.slot_date).toLocaleDateString()} • {new Date(item.delivery_slot.start_ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
         </View>
-
-        {selectedOrder && (
-          <ScrollView style={styles.modalContent}>
-            {/* Order Info */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Order Information</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Order ID:</Text>
-                <Text style={styles.detailValue}>#{selectedOrder.id}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Status:</Text>
-                {renderStatusBadge(selectedOrder.status)}
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Date:</Text>
-                <Text style={styles.detailValue}>
-                  {new Date(selectedOrder.createdAt).toLocaleString()}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Total:</Text>
-                <Text style={styles.detailValue}>₹{selectedOrder.totalAmount}</Text>
-              </View>
-            </View>
-
-            {/* Customer Info */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Customer Information</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Name:</Text>
-                <Text style={styles.detailValue}>{selectedOrder.customerName}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Email:</Text>
-                <Text style={styles.detailValue}>{selectedOrder.customerEmail}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Phone:</Text>
-                <Text style={styles.detailValue}>{selectedOrder.customerPhone}</Text>
-              </View>
-            </View>
-
-            {/* Delivery Info */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Delivery Information</Text>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Address:</Text>
-                <Text style={styles.detailValue}>
-                  {typeof selectedOrder.deliveryAddress === 'string' 
-                    ? selectedOrder.deliveryAddress
-                    : `${selectedOrder.deliveryAddress.street}, ${selectedOrder.deliveryAddress.city}`
-                  }
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Slot:</Text>
-                <Text style={styles.detailValue}>
-                  {selectedOrder.deliverySlot.date} • {selectedOrder.deliverySlot.time}
-                </Text>
-              </View>
-            </View>
-
-            {/* Order Items */}
-            <View style={styles.detailSection}>
-              <Text style={styles.sectionTitle}>Order Items</Text>
-              {selectedOrder.items.map((item, index) => (
-                <View key={index} style={styles.itemRow}>
-                  <Text style={styles.itemName}>{item.product.name}</Text>
-                  <Text style={styles.itemQuantity}>
-                    {item.quantity} {item.product.unit}
-                  </Text>
-                  <Text style={styles.itemPrice}>₹{item.totalPrice}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Status Update Buttons */}
-            <View style={styles.statusUpdateSection}>
-              <Text style={styles.sectionTitle}>Update Status</Text>
-              <View style={styles.statusButtons}>
-                {statusOptions.slice(1).map((status) => (
-                  <TouchableOpacity
-                    key={status.key}
-                    style={[
-                      styles.statusButton,
-                      {backgroundColor: status.color},
-                      selectedOrder.status === status.key && styles.currentStatus,
-                    ]}
-                    onPress={() => handleStatusUpdate(selectedOrder.id, status.key)}
-                    disabled={selectedOrder.status === status.key}
-                  >
-                    <Text style={styles.statusButtonText}>{status.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-        )}
-      </View>
-    </Modal>
+      )}
+    </TouchableOpacity>
   );
 
   return (
@@ -303,30 +159,36 @@ const OrderManagementScreen: React.FC = () => {
       </View>
 
       {/* Status Filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterTabs}>
-        {statusOptions.map((status) => (
-          <TouchableOpacity
-            key={status.key}
-            style={[
-              styles.filterTab,
-              selectedStatus === status.key && {backgroundColor: status.color},
-            ]}
-            onPress={() => setSelectedStatus(status.key)}
-          >
-            <Text
+      <View style={styles.filterContainer}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={statusOptions}
+          keyExtractor={item => item.key}
+          renderItem={({ item }) => (
+            <TouchableOpacity
               style={[
-                styles.filterTabText,
-                selectedStatus === status.key && styles.activeFilterTabText,
+                styles.filterTab,
+                selectedStatus === item.key && { backgroundColor: item.color },
               ]}
+              onPress={() => setSelectedStatus(item.key)}
             >
-              {status.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.filterTabText,
+                  selectedStatus === item.key && styles.activeFilterTabText,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.filterListContent}
+        />
+      </View>
 
       {/* Orders List */}
-      {ordersLoading ? (
+      {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.loadingText}>Loading orders...</Text>
@@ -348,9 +210,6 @@ const OrderManagementScreen: React.FC = () => {
           }
         />
       )}
-
-      {/* Order Details Modal */}
-      {renderOrderDetailsModal()}
     </View>
   );
 };
@@ -401,12 +260,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  filterTabs: {
+  filterContainer: {
     backgroundColor: '#fff',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  filterListContent: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   filterTab: {
     paddingHorizontal: 16,
@@ -434,7 +295,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
@@ -445,7 +306,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   orderId: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -492,27 +353,15 @@ const styles = StyleSheet.create({
   deliveryInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
   },
   deliverySlot: {
     marginLeft: 4,
     fontSize: 14,
     color: '#666',
-  },
-  orderActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  actionButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
   loadingContainer: {
     flex: 1,
@@ -535,99 +384,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  modalContent: {
-    flex: 1,
-    padding: 16,
-  },
-  detailSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  detailLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
-  },
-  itemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  itemName: {
-    flex: 1,
-    fontSize: 14,
-    color: '#333',
-  },
-  itemQuantity: {
-    fontSize: 14,
-    color: '#666',
-    marginHorizontal: 8,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  statusUpdateSection: {
-    marginTop: 24,
-  },
-  statusButtons: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  currentStatus: {
-    opacity: 0.5,
-  },
-  statusButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
   },
 });
 

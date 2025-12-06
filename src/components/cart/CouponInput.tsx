@@ -1,4 +1,4 @@
- // app/components/cart/CouponInput.tsx
+// app/components/cart/CouponInput.tsx
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,8 +51,8 @@ const CouponInput: React.FC<CouponInputProps> = ({
       'Remove Coupon',
       `Remove coupon "${appliedCoupon?.code}"?`,
       [
-        {text: 'Cancel', style: 'cancel'},
-        {text: 'Remove', onPress: onRemoveCoupon, style: 'destructive'},
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', onPress: onRemoveCoupon, style: 'destructive' },
       ]
     );
   };
@@ -65,9 +65,9 @@ const CouponInput: React.FC<CouponInputProps> = ({
           <View style={styles.appliedTextContainer}>
             <Text style={styles.appliedCode}>{appliedCoupon.code}</Text>
             <Text style={styles.appliedDescription}>
-              {appliedCoupon.type === 'percentage' 
-                ? `${appliedCoupon.value}% off` 
-                : `AED ${appliedCoupon.value} off`
+              {appliedCoupon.type === 'percentage'
+                ? `${appliedCoupon.value}% off`
+                : `₹${appliedCoupon.value} off`
               }
             </Text>
           </View>
@@ -85,7 +85,7 @@ const CouponInput: React.FC<CouponInputProps> = ({
         <Icon name="local-offer" size={18} color="#4CAF50" />
         <Text style={styles.headerText}>Have a coupon code?</Text>
       </View>
-      
+
       <View style={[
         styles.inputContainer,
         inputFocused && styles.inputContainerFocused,
@@ -104,7 +104,7 @@ const CouponInput: React.FC<CouponInputProps> = ({
           onFocus={() => setInputFocused(true)}
           onBlur={() => setInputFocused(false)}
         />
-        
+
         <TouchableOpacity
           onPress={handleApplyCoupon}
           style={[
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     elevation: 1,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 1,
   },

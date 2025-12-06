@@ -1,23 +1,27 @@
 // app/screens/orders/OrderDetailsScreen.tsx
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Icon from 'react-native-vector-icons/MaterialIcons';
 
+import { useDispatch } from 'react-redux';
+
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import priceCalculator from '../../../lib/services/business/priceCalculator';
-import { Order, OrderStatus } from '../../../lib/types/order';
+import orderManagementService, { OrderStatus, OrderWithDetails } from '../../../lib/supabase/services/orderManagement';
+import { AppDispatch } from '../../../lib/supabase/store';
+import { addToCart } from '../../../lib/supabase/store/actions/cartActions';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Header from '../../components/common/Header';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import {
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from '../../components/ui/WebCompatibleComponents';
+import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
 interface OrderDetailsRouteParams {
@@ -30,7 +34,7 @@ const getStatusColor = (status: OrderStatus): string => {
       return '#FFA500';
     case 'confirmed':
       return '#007AFF';
-    case 'processing':
+    case 'preparing':
       return '#8A2BE2';
     case 'out_for_delivery':
       return '#FF6B6B';
@@ -38,6 +42,8 @@ const getStatusColor = (status: OrderStatus): string => {
       return '#28A745';
     case 'cancelled':
       return '#DC3545';
+    case 'refunded':
+      return '#666';
     default:
       return '#666';
   }
@@ -49,10 +55,8 @@ const getStatusText = (status: OrderStatus): string => {
       return 'Pending';
     case 'confirmed':
       return 'Confirmed';
-    case 'processing':
-      return 'Processing';
-    case 'packed':
-      return 'Packed';
+    case 'preparing':
+      return 'Preparing';
     case 'out_for_delivery':
       return 'Out for Delivery';
     case 'delivered':
@@ -66,124 +70,31 @@ const getStatusText = (status: OrderStatus): string => {
   }
 };
 
-// Mock order data - in real app, this would come from API
-const MOCK_ORDER: Order = {
-  id: 'ORD-001',
-  userId: 'user1',
-  items: [
-    {
-      id: 'item1',
-      productId: 'prod1',
-      name: 'Fresh Bananas',
-      image: 'https://via.placeholder.com/100x100/FFE135/000000?text=Banana',
-      unit: 'kg',
-      price: 12.99,
-      discountedPrice: 12.99,
-      quantity: 2,
-      maxQuantity: 50,
-      isAvailable: true,
-      product: {
-        id: 'prod1',
-        name: 'Fresh Bananas',
-        price: 12.99,
-        originalPrice: 15.99,
-        unit: 'kg',
-        category: { id: '1', name: 'Fresh Fruits', image: '', isActive: true },
-        images: ['https://via.placeholder.com/100x100/FFE135/000000?text=Banana'],
-        stock: 50,
-        isOrganic: false,
-        tags: ['fresh', 'fruit'],
-        isActive: true,
-        rating: 4.5,
-        reviewCount: 128,
-        description: 'Fresh bananas',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      totalPrice: 25.98,
-    },
-    {
-      id: 'item2',
-      productId: 'prod2',
-      name: 'Fresh Milk',
-      image: 'https://via.placeholder.com/100x100/FFFFFF/4169E1?text=Milk',
-      unit: 'liter',
-      price: 6.25,
-      quantity: 1,
-      maxQuantity: 100,
-      isAvailable: true,
-      product: {
-        id: 'prod2',
-        name: 'Fresh Milk',
-        price: 6.25,
-        unit: 'liter',
-        category: { id: '2', name: 'Dairy', image: '', isActive: true },
-        images: ['https://via.placeholder.com/100x100/FFFFFF/4169E1?text=Milk'],
-        stock: 100,
-        isOrganic: false,
-        tags: ['dairy', 'fresh'],
-        isActive: true,
-        rating: 4.7,
-        reviewCount: 256,
-        description: 'Fresh milk',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      totalPrice: 6.25,
-    },
-  ],
-  totalAmount: 32.23,
-  discount: 0,
-  deliveryCharge: 5.00,
-  finalAmount: 37.23,
-  status: 'delivered',
-  paymentStatus: 'completed',
-  deliverySlot: {
-    id: 'slot1',
-    date: '2024-01-15',
-    time: '14:00-16:00',
-    type: 'evening',
-    capacity: 10,
-    bookedCount: 5,
-    available: true,
-    charge: 5.00,
-    estimatedDelivery: '2024-01-15T16:00:00Z',
-  },
-  deliveryAddress: {
-    id: 'addr1',
-    street: '123 Main Street',
-    city: 'Dubai',
-    state: 'Dubai',
-    pincode: '12345',
-    area: 'Downtown',
-    isDefault: true,
-  },
-  estimatedDelivery: '2024-01-15T16:00:00Z',
-  actualDelivery: '2024-01-15T15:30:00Z',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-01-15T15:30:00Z',
-};
-
 export const OrderDetailsScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { orderId } = route.params as OrderDetailsRouteParams;
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const dispatch = useDispatch<AppDispatch>();
+  const { user } = useAuth();
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadOrderDetails();
+    if (orderId) {
+      loadOrderDetails();
+    }
   }, [orderId]);
 
   const loadOrderDetails = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setOrder(MOCK_ORDER);
+      setIsLoading(true);
+      const orderDetails = await orderManagementService.getOrderDetails(orderId);
+      setOrder(orderDetails);
     } catch (error) {
+      console.error('Error loading order details:', error);
       Alert.alert('Error', 'Failed to load order details. Please try again.');
     } finally {
       setIsLoading(false);
@@ -191,32 +102,69 @@ export const OrderDetailsScreen: React.FC = () => {
   };
 
   const handleTrackOrder = () => {
-    if (order?.status === 'delivered' || order?.status === 'cancelled') {
+    if (order?.status === 'delivered' || order?.status === 'cancelled' || order?.status === 'refunded') {
       Alert.alert('Tracking', 'This order is no longer being tracked.');
     } else {
-      Alert.alert('Track Order', `Tracking order: ${order?.id}`);
+      // @ts-ignore
+      navigation.navigate('OrderTracking', { orderId: order?.id });
     }
   };
 
-  const handleReorder = () => {
-    if (!order) return;
-    
+  const handleReorder = async () => {
+    if (!order || !user?.id) return;
+
     Alert.alert(
       'Reorder',
       `Add ${order.items.length} items to cart?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Add to Cart', 
-          onPress: () => Alert.alert('Success', 'Items added to cart!') 
+        {
+          text: 'Add to Cart',
+          onPress: async () => {
+            try {
+              // Add all items to cart
+              const promises = order.items.map(item =>
+                dispatch(addToCart({
+                  userId: user.id,
+                  productId: item.product_id,
+                  quantity: item.quantity
+                })).unwrap()
+              );
+
+              await Promise.all(promises);
+
+              Alert.alert(
+                'Success',
+                'Items added to cart!',
+                [
+                  {
+                    text: 'Go to Cart',
+                    onPress: () => navigation.navigate('CartTab' as never)
+                  },
+                  {
+                    text: 'Continue Shopping',
+                    style: 'cancel'
+                  }
+                ]
+              );
+            } catch (error) {
+              console.error('Error reordering:', error);
+              Alert.alert('Error', 'Failed to add items to cart. Please try again.');
+            }
+          }
         },
       ]
     );
   };
 
   const handleCancelOrder = () => {
-    if (order?.status === 'delivered' || order?.status === 'cancelled') {
+    if (order?.status === 'delivered' || order?.status === 'cancelled' || order?.status === 'refunded') {
       Alert.alert('Cannot Cancel', 'This order cannot be cancelled.');
+      return;
+    }
+
+    if (!['pending', 'confirmed'].includes(order?.status || '')) {
+      Alert.alert('Cannot Cancel', 'Order is already being processed and cannot be cancelled.');
       return;
     }
 
@@ -225,16 +173,28 @@ export const OrderDetailsScreen: React.FC = () => {
       'Are you sure you want to cancel this order?',
       [
         { text: 'No', style: 'cancel' },
-        { 
-          text: 'Yes, Cancel', 
+        {
+          text: 'Yes, Cancel',
           style: 'destructive',
-          onPress: () => Alert.alert('Order Cancelled', 'Your order has been cancelled.') 
+          onPress: async () => {
+            try {
+              if (order?.id && order?.user_id) {
+                await orderManagementService.cancelOrder(order.id, order.user_id, 'Cancelled by user');
+                Alert.alert('Order Cancelled', 'Your order has been cancelled.');
+                loadOrderDetails(); // Refresh details
+              }
+            } catch (error) {
+              console.error('Error cancelling order:', error);
+              Alert.alert('Error', 'Failed to cancel order. Please try again.');
+            }
+          }
         },
       ]
     );
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -267,7 +227,7 @@ export const OrderDetailsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
+      <Header
         title="Order Details"
         rightActions={[
           {
@@ -282,8 +242,8 @@ export const OrderDetailsScreen: React.FC = () => {
         <Card style={styles.headerCard}>
           <View style={styles.orderHeader}>
             <View>
-              <Text style={styles.orderId}>Order #{order.id}</Text>
-              <Text style={styles.orderDate}>{formatDate(order.createdAt)}</Text>
+              <Text style={styles.orderId}>Order #{order.order_number}</Text>
+              <Text style={styles.orderDate}>{formatDate(order.created_at)}</Text>
             </View>
             <View
               style={[
@@ -301,16 +261,16 @@ export const OrderDetailsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Items ({order.items.length})</Text>
           {order.items.map((item) => (
             <View key={item.id} style={styles.itemRow}>
-              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <Image source={{ uri: item.product_image || 'https://via.placeholder.com/50' }} style={styles.itemImage} />
               <View style={styles.itemDetails}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemUnit}>{item.unit}</Text>
+                <Text style={styles.itemName}>{item.product_name}</Text>
+                {/* Unit is not available in OrderItem, skipping */}
                 <Text style={styles.itemPrice}>
                   {priceCalculator.formatPrice(item.price)} × {item.quantity}
                 </Text>
               </View>
               <Text style={styles.itemTotal}>
-                {priceCalculator.formatPrice(item.totalPrice)}
+                {priceCalculator.formatPrice(item.total)}
               </Text>
             </View>
           ))}
@@ -319,16 +279,17 @@ export const OrderDetailsScreen: React.FC = () => {
         {/* Delivery Information */}
         <Card style={styles.deliveryCard}>
           <Text style={styles.sectionTitle}>Delivery Information</Text>
-          
+
           <View style={styles.deliveryRow}>
             <Icon name="location-on" size={20} color="#666" />
             <View style={styles.deliveryDetails}>
               <Text style={styles.deliveryLabel}>Delivery Address</Text>
               <Text style={styles.deliveryText}>
-                {order.deliveryAddress.street}, {order.deliveryAddress.area}
+                {order.delivery_address.address_line_1 || order.delivery_address.address_line1}
+                {order.delivery_address.address_line_2 ? `, ${order.delivery_address.address_line_2}` : ''}
               </Text>
               <Text style={styles.deliveryText}>
-                {order.deliveryAddress.city}, {order.deliveryAddress.state} {order.deliveryAddress.pincode}
+                {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.pincode || order.delivery_address.postal_code}
               </Text>
             </View>
           </View>
@@ -338,15 +299,15 @@ export const OrderDetailsScreen: React.FC = () => {
             <View style={styles.deliveryDetails}>
               <Text style={styles.deliveryLabel}>Delivery Slot</Text>
               <Text style={styles.deliveryText}>
-                {order.deliverySlot.date} • {order.deliverySlot.time}
+                {order.delivery_slot?.slot_date} • {order.delivery_slot?.slot_type}
               </Text>
-              {order.actualDelivery ? (
+              {order.actual_delivery_time ? (
                 <Text style={styles.deliveredText}>
-                  Delivered on {formatDate(order.actualDelivery)}
+                  Delivered on {formatDate(order.actual_delivery_time)}
                 </Text>
               ) : (
                 <Text style={styles.estimatedText}>
-                  Estimated: {formatDate(order.estimatedDelivery)}
+                  Estimated: {formatDate(order.estimated_delivery_time)}
                 </Text>
               )}
             </View>
@@ -356,19 +317,19 @@ export const OrderDetailsScreen: React.FC = () => {
         {/* Payment Summary */}
         <Card style={styles.summaryCard}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
-          
+
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Items Total</Text>
+            <Text style={styles.summaryLabel}>Subtotal</Text>
             <Text style={styles.summaryValue}>
-              {priceCalculator.formatPrice(order.totalAmount)}
+              {priceCalculator.formatPrice(order.subtotal)}
             </Text>
           </View>
 
-          {order.discount > 0 && (
+          {order.discount_amount > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Discount</Text>
               <Text style={[styles.summaryValue, styles.discountText]}>
-                -{priceCalculator.formatPrice(order.discount)}
+                -{priceCalculator.formatPrice(order.discount_amount)}
               </Text>
             </View>
           )}
@@ -376,24 +337,31 @@ export const OrderDetailsScreen: React.FC = () => {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Charge</Text>
             <Text style={styles.summaryValue}>
-              {order.deliveryCharge === 0 
-                ? 'FREE' 
-                : priceCalculator.formatPrice(order.deliveryCharge)
+              {order.delivery_charge === 0
+                ? 'FREE'
+                : priceCalculator.formatPrice(order.delivery_charge)
               }
+            </Text>
+          </View>
+
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Tax (GST)</Text>
+            <Text style={styles.summaryValue}>
+              {priceCalculator.formatPrice(order.gst_amount)}
             </Text>
           </View>
 
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total Amount</Text>
             <Text style={styles.totalValue}>
-              {priceCalculator.formatPrice(order.finalAmount)}
+              {priceCalculator.formatPrice(order.total_amount)}
             </Text>
           </View>
         </Card>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          {(order.status === 'confirmed' || order.status === 'processing' || order.status === 'out_for_delivery') && (
+          {['confirmed', 'preparing', 'out_for_delivery'].includes(order.status) && (
             <Button
               title="Track Order"
               onPress={handleTrackOrder}
@@ -401,7 +369,7 @@ export const OrderDetailsScreen: React.FC = () => {
               variant="primary"
             />
           )}
-          
+
           <Button
             title="Reorder Items"
             onPress={handleReorder}
@@ -409,7 +377,7 @@ export const OrderDetailsScreen: React.FC = () => {
             variant="outline"
           />
 
-          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+          {['pending', 'confirmed'].includes(order.status) && (
             <Button
               title="Cancel Order"
               onPress={handleCancelOrder}
@@ -608,4 +576,3 @@ const createStyles = (colors: any) => StyleSheet.create({
 });
 
 export default OrderDetailsScreen;
-

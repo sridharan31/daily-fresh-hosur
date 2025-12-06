@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({
   showLocation = true,
   onProfilePress,
   onLocationPress,
-  location = 'New York, NY',
+  location = 'Select Location',
   showSearch = false,
   showCart = true,
   onCartPress,
@@ -65,7 +65,30 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [displayLocation, setDisplayLocation] = useState(location);
   const dispatch = useDispatch<AppDispatch>();
+
+  React.useEffect(() => {
+    const fetchAddress = async () => {
+      if (user?.id) {
+        try {
+          // We need to import userService dynamically or ensure it's available
+          // For now, let's assume we can use the same pattern as checkout
+          const { userService } = require('../../../lib/supabase/services/user');
+          const addresses = await userService.getUserAddresses(user.id);
+          const defaultAddress = addresses.find((addr: any) => addr.is_default) || addresses[0];
+          if (defaultAddress) {
+            setDisplayLocation(`${defaultAddress.city}, ${defaultAddress.state}`);
+          } else {
+            setDisplayLocation('Select Location');
+          }
+        } catch (e) {
+          console.error("Failed to fetch address for header", e);
+        }
+      }
+    };
+    fetchAddress();
+  }, [user]);
 
   const containerStyle: React.CSSProperties = {
     backgroundColor,
@@ -85,13 +108,13 @@ const Header: React.FC<HeaderProps> = ({
     if (confirm('Are you sure you want to logout?')) {
       // Clear all session data
       dispatch(logout());
-      // Clear any local storage if used
+
+      // Force reload to ensure clean state and redirection to entry point
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
+        window.location.href = '/';
+      } else {
+        router.replace('/');
       }
-      // Redirect to login page
-      router.replace('/');
     }
   };
 
@@ -109,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <div style={containerStyle} data-testid={testID}>
       {/* Main Header */}
-      <div style={{...headerStyle}}>
+      <div style={{ ...headerStyle }}>
         {/* Left: Location */}
         {showLocation && (
           <div style={leftSectionStyle}>
@@ -120,7 +143,7 @@ const Header: React.FC<HeaderProps> = ({
               <span style={{ fontSize: '16px', color: '#4CAF50', marginRight: '6px' }}>📍</span>
               <div>
                 <div style={deliverToTextStyle}>Deliver to</div>
-                <div style={locationTextStyle}>{location}</div>
+                <div style={locationTextStyle}>{displayLocation}</div>
               </div>
             </button>
           </div>
@@ -130,7 +153,11 @@ const Header: React.FC<HeaderProps> = ({
         <div style={centerSectionStyle}>
           {title === "Daily Fresh Hosur" ? (
             <div style={logoStyle}>
-              🥬 <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>FreshCart</span>
+              <img
+                src={require('../../../assets/branding/Fresh_From_Hosur_Farms.png')}
+                alt="Fresh From Hosur Farms"
+                style={{ height: 40, objectFit: 'contain' }}
+              />
             </div>
           ) : (
             <div style={{ ...titleStyle, color: titleColor, fontSize: '18px', fontWeight: 'bold' }}>
@@ -180,7 +207,7 @@ const Header: React.FC<HeaderProps> = ({
                 aria-label="User Profile"
               >
                 <span style={profileInitialStyle}>
-                  {user?.firstName?.charAt(0)?.toUpperCase() || 'G'}
+                  {user?.full_name?.charAt(0)?.toUpperCase() || 'G'}
                 </span>
               </button>
 
@@ -193,16 +220,19 @@ const Header: React.FC<HeaderProps> = ({
                         <span style={{ fontSize: '20px', marginRight: '12px' }}>👤</span>
                         <span>My Profile</span>
                       </button>
-                      
-                      <button style={dropdownItemStyle} onClick={handleMyOrders}>
+
+                      <button style={dropdownItemStyle} onClick={() => {
+                        setShowProfileDropdown(false);
+                        router.push('/(tabs)/orders');
+                      }}>
                         <span style={{ fontSize: '20px', marginRight: '12px' }}>📋</span>
                         <span>My Orders</span>
                       </button>
-                      
+
                       <div style={dropdownDividerStyle}></div>
-                      
-                      <button 
-                        style={{ ...dropdownItemStyle, color: '#ff4444' }} 
+
+                      <button
+                        style={{ ...dropdownItemStyle, color: '#ff4444' }}
                         onClick={handleLogout}
                       >
                         <span style={{ fontSize: '20px', marginRight: '12px' }}>🚪</span>
@@ -210,9 +240,9 @@ const Header: React.FC<HeaderProps> = ({
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Overlay to close dropdown */}
-                  <div 
+                  <div
                     style={overlayStyle}
                     onClick={() => setShowProfileDropdown(false)}
                   ></div>

@@ -1,156 +1,25 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+
+import orderManagementService, { OrderStatus, OrderWithDetails } from '../../../lib/supabase/services/orderManagement';
+import { AppDispatch } from '../../../lib/supabase/store';
+import { addToCart } from '../../../lib/supabase/store/actions/cartActions';
+import Card from '../../components/common/Card';
+import LoadingScreen from '../../components/common/LoadingScreen';
+import ReorderModal from '../../components/orders/ReorderModal';
 import {
   Alert,
   FlatList,
   RefreshControl,
+  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { Order, OrderStatus } from '../../../lib/types/order';
-import Card from '../../components/common/Card';
-import LoadingScreen from '../../components/common/LoadingScreen';
+} from '../../components/ui/WebCompatibleComponents';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-
-// Mock order data
-const MOCK_ORDERS: Order[] = [
-  {
-    id: 'ORD-001',
-    userId: 'user1',
-    items: [
-      {
-        id: 'item1',
-        productId: 'prod1',
-        name: 'Fresh Bananas',
-        image: 'https://via.placeholder.com/100x100/FFE135/000000?text=Banana',
-        unit: 'kg',
-        price: 12.99,
-        discountedPrice: 12.99,
-        quantity: 2,
-        maxQuantity: 50,
-        isAvailable: true,
-        product: {
-          id: 'prod1',
-          name: 'Fresh Bananas',
-          price: 12.99,
-          originalPrice: 15.99,
-          unit: 'kg',
-          category: { id: '1', name: 'Fresh Fruits', image: '', isActive: true },
-          images: ['https://via.placeholder.com/100x100/FFE135/000000?text=Banana'],
-          stock: 50,
-          isOrganic: false,
-          tags: ['fresh', 'fruit'],
-          isActive: true,
-          rating: 4.5,
-          reviewCount: 128,
-          description: 'Fresh bananas',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        totalPrice: 25.98,
-      },
-    ],
-    totalAmount: 25.98,
-    discount: 0,
-    deliveryCharge: 5.00,
-    finalAmount: 30.98,
-    status: 'delivered',
-    paymentStatus: 'completed',
-    deliverySlot: {
-      id: 'slot1',
-      date: '2024-01-15',
-      time: '14:00-16:00',
-      type: 'evening',
-      capacity: 10,
-      bookedCount: 5,
-      available: true,
-      charge: 5.00,
-      estimatedDelivery: '2024-01-15T16:00:00Z',
-    },
-    deliveryAddress: {
-      id: 'addr1',
-      street: '123 Main Street',
-      city: 'Dubai',
-      state: 'Dubai',
-      pincode: '12345',
-      area: 'Downtown',
-      isDefault: true,
-    },
-    estimatedDelivery: '2024-01-15T16:00:00Z',
-    actualDelivery: '2024-01-15T15:30:00Z',
-    createdAt: '2024-01-15T10:30:00Z',
-    updatedAt: '2024-01-15T15:30:00Z',
-  },
-  {
-    id: 'ORD-002',
-    userId: 'user1',
-    items: [
-      {
-        id: 'item2',
-        productId: 'prod2',
-        name: 'Fresh Milk',
-        image: 'https://via.placeholder.com/100x100/FFFFFF/4169E1?text=Milk',
-        unit: 'liter',
-        price: 6.25,
-        quantity: 2,
-        maxQuantity: 100,
-        isAvailable: true,
-        product: {
-          id: 'prod2',
-          name: 'Fresh Milk',
-          price: 6.25,
-          unit: 'liter',
-          category: { id: '2', name: 'Dairy', image: '', isActive: true },
-          images: ['https://via.placeholder.com/100x100/FFFFFF/4169E1?text=Milk'],
-          stock: 100,
-          isOrganic: false,
-          tags: ['dairy', 'fresh'],
-          isActive: true,
-          rating: 4.7,
-          reviewCount: 256,
-          description: 'Fresh milk',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        totalPrice: 12.50,
-      },
-    ],
-    totalAmount: 12.50,
-    discount: 0,
-    deliveryCharge: 5.00,
-    finalAmount: 17.50,
-    status: 'out_for_delivery',
-    paymentStatus: 'completed',
-    deliverySlot: {
-      id: 'slot2',
-      date: '2024-01-16',
-      time: '10:00-12:00',
-      type: 'morning',
-      capacity: 10,
-      bookedCount: 3,
-      available: true,
-      charge: 5.00,
-      estimatedDelivery: '2024-01-16T12:00:00Z',
-    },
-    deliveryAddress: {
-      id: 'addr1',
-      street: '123 Main Street',
-      city: 'Dubai',
-      state: 'Dubai',
-      pincode: '12345',
-      area: 'Downtown',
-      isDefault: true,
-    },
-    estimatedDelivery: '2024-01-16T12:00:00Z',
-    createdAt: '2024-01-16T09:15:00Z',
-    updatedAt: '2024-01-16T10:30:00Z',
-  },
-];
 
 const getStatusColor = (status: OrderStatus): string => {
   switch (status) {
@@ -158,7 +27,7 @@ const getStatusColor = (status: OrderStatus): string => {
       return '#FFA500';
     case 'confirmed':
       return '#007AFF';
-    case 'processing':
+    case 'preparing':
       return '#8A2BE2';
     case 'out_for_delivery':
       return '#FF6B6B';
@@ -166,6 +35,8 @@ const getStatusColor = (status: OrderStatus): string => {
       return '#28A745';
     case 'cancelled':
       return '#DC3545';
+    case 'refunded':
+      return '#666';
     default:
       return '#666';
   }
@@ -177,10 +48,8 @@ const getStatusText = (status: OrderStatus): string => {
       return 'Pending';
     case 'confirmed':
       return 'Confirmed';
-    case 'processing':
-      return 'Processing';
-    case 'packed':
-      return 'Packed';
+    case 'preparing':
+      return 'Preparing';
     case 'out_for_delivery':
       return 'Out for Delivery';
     case 'delivered':
@@ -199,22 +68,30 @@ export const OrderHistoryScreen: React.FC = () => {
   const { user } = useAuth();
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const dispatch = useDispatch<AppDispatch>();
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | OrderStatus>('all');
+  const [reorderModalVisible, setReorderModalVisible] = useState(false);
+  const [selectedOrderForReorder, setSelectedOrderForReorder] = useState<OrderWithDetails | null>(null);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    if (user?.id) {
+      loadOrders();
+    }
+  }, [user?.id]);
 
   const loadOrders = async () => {
+    if (!user?.id) return;
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setOrders(MOCK_ORDERS);
+      setIsLoading(true);
+      const userOrders = await orderManagementService.getCustomerOrders(user.id);
+      setOrders(userOrders);
     } catch (error) {
+      console.error('Error loading orders:', error);
       Alert.alert('Error', 'Failed to load orders. Please try again.');
     } finally {
       setIsLoading(false);
@@ -227,37 +104,67 @@ export const OrderHistoryScreen: React.FC = () => {
     setRefreshing(false);
   };
 
-  const filteredOrders = filter === 'all' 
-    ? orders 
+  const filteredOrders = filter === 'all'
+    ? orders
     : orders.filter(order => order.status === filter);
 
-  const handleOrderPress = (order: Order) => {
-    Alert.alert('Order Details', `Order ID: ${order.id}\nStatus: ${getStatusText(order.status)}`);
+  const handleOrderPress = (order: OrderWithDetails) => {
+    // @ts-ignore - Navigation types need to be updated
+    navigation.navigate('OrderDetails', { orderId: order.id });
   };
 
-  const handleTrackOrder = (order: Order) => {
-    if (order.status === 'delivered' || order.status === 'cancelled') {
+  const handleTrackOrder = (order: OrderWithDetails) => {
+    if (order.status === 'delivered' || order.status === 'cancelled' || order.status === 'refunded') {
       Alert.alert('Tracking', 'This order is no longer being tracked.');
     } else {
-      Alert.alert('Track Order', `Tracking order: ${order.id}`);
+      // @ts-ignore - Navigation types need to be updated
+      navigation.navigate('OrderTracking', { orderId: order.id });
     }
   };
 
-  const handleReorder = (order: Order) => {
-    Alert.alert(
-      'Reorder',
-      `Add ${order.items.length} items to cart?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Add to Cart', 
-          onPress: () => Alert.alert('Success', 'Items added to cart!') 
-        },
-      ]
-    );
+  const handleReorder = (order: OrderWithDetails) => {
+    setSelectedOrderForReorder(order);
+    setReorderModalVisible(true);
+  };
+
+  const confirmReorder = async () => {
+    if (!selectedOrderForReorder || !user?.id) return;
+
+    try {
+      setReorderModalVisible(false);
+
+      const promises = selectedOrderForReorder.items.map(item =>
+        dispatch(addToCart({
+          userId: user.id,
+          productId: item.product_id,
+          quantity: item.quantity
+        })).unwrap()
+      );
+
+      await Promise.all(promises);
+
+      Alert.alert(
+        'Success',
+        'Items added to cart!',
+        [
+          {
+            text: 'Go to Cart',
+            onPress: () => navigation.navigate('CartTab' as never)
+          },
+          {
+            text: 'Continue Shopping',
+            style: 'cancel'
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error reordering:', error);
+      Alert.alert('Error', 'Failed to add items to cart. Please try again.');
+    }
   };
 
   const formatDate = (dateString: string): string => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -268,13 +175,13 @@ export const OrderHistoryScreen: React.FC = () => {
     });
   };
 
-  const renderOrder = ({ item }: { item: Order }) => (
+  const renderOrder = ({ item }: { item: OrderWithDetails }) => (
     <Card style={styles.orderCard}>
       <TouchableOpacity onPress={() => handleOrderPress(item)}>
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
-            <Text style={styles.orderId}>Order #{item.id}</Text>
-            <Text style={styles.orderDate}>{formatDate(item.createdAt)}</Text>
+            <Text style={styles.orderId}>Order #{item.order_number}</Text>
+            <Text style={styles.orderDate}>{formatDate(item.created_at)}</Text>
           </View>
           <View
             style={[
@@ -288,13 +195,13 @@ export const OrderHistoryScreen: React.FC = () => {
 
         <View style={styles.orderItems}>
           <Text style={styles.itemsText}>
-            {item.items.length} {item.items.length === 1 ? 'item' : 'items'}
+            {item.items?.length || 0} {(item.items?.length || 0) === 1 ? 'item' : 'items'}
           </Text>
-          <Text style={styles.totalAmount}>AED {item.totalAmount.toFixed(2)}</Text>
+          <Text style={styles.totalAmount}>₹{item.total_amount.toFixed(2)}</Text>
         </View>
 
         <View style={styles.orderActions}>
-          {(item.status === 'confirmed' || item.status === 'processing' || item.status === 'out_for_delivery') && (
+          {['confirmed', 'preparing', 'out_for_delivery'].includes(item.status) && (
             <TouchableOpacity
               style={[styles.actionButton, styles.trackButton]}
               onPress={() => handleTrackOrder(item)}
@@ -302,7 +209,7 @@ export const OrderHistoryScreen: React.FC = () => {
               <Text style={styles.trackButtonText}>Track Order</Text>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity
             style={[styles.actionButton, styles.reorderButton]}
             onPress={() => handleReorder(item)}
@@ -356,14 +263,14 @@ export const OrderHistoryScreen: React.FC = () => {
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No orders found</Text>
           <Text style={styles.emptyStateText}>
-            {filter === 'all' 
+            {filter === 'all'
               ? "You haven't placed any orders yet."
               : `No ${getStatusText(filter as OrderStatus).toLowerCase()} orders found.`
             }
           </Text>
           <TouchableOpacity
             style={styles.shopButton}
-            onPress={() => Alert.alert('Navigation', 'Navigate to Home screen')}
+            onPress={() => navigation.navigate('Home' as never)}
           >
             <Text style={styles.shopButtonText}>Start Shopping</Text>
           </TouchableOpacity>
@@ -372,7 +279,7 @@ export const OrderHistoryScreen: React.FC = () => {
         <FlatList
           data={filteredOrders}
           renderItem={renderOrder}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item: OrderWithDetails) => item.id}
           contentContainerStyle={styles.ordersList}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -380,6 +287,14 @@ export const OrderHistoryScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <ReorderModal
+        visible={reorderModalVisible}
+        orderNumber={selectedOrderForReorder?.order_number}
+        itemCount={selectedOrderForReorder?.items.length || 0}
+        onClose={() => setReorderModalVisible(false)}
+        onConfirm={confirmReorder}
+      />
     </SafeAreaView>
   );
 };
@@ -538,6 +453,4 @@ const createStyles = (colors: any) => StyleSheet.create({
   },
 });
 
-// Default export to satisfy Expo Router (this file should be treated as a route)
 export default OrderHistoryScreen;
-

@@ -1,15 +1,15 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { Product } from '../../../lib/types/product';
 import Button from '../../components/common/Button';
@@ -23,10 +23,10 @@ const ProductDetailsScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const cart = useCartEnhanced();
-  
+
   // Get product from route params or use mock data
   const productId = (route.params as any)?.productId;
-  
+
   // Mock product data - in real app, fetch from API
   const [product] = useState<Product>({
     id: productId || '1',
@@ -113,7 +113,7 @@ const ProductDetailsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <Header title="Product Details" />
-      
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Product Images */}
         <View style={styles.imageContainer}>
@@ -127,7 +127,7 @@ const ProductDetailsScreen: React.FC = () => {
               <Text style={styles.organicText}>🌱 Organic</Text>
             </View>
           )}
-          
+
           {/* Image Thumbnails */}
           {product.images.length > 1 && (
             <View style={styles.thumbnailContainer}>
@@ -151,16 +151,16 @@ const ProductDetailsScreen: React.FC = () => {
         <Card style={styles.infoCard}>
           <Text style={styles.productName}>{product.name}</Text>
           <Text style={styles.category}>{product.category.name} • {product.subCategory}</Text>
-          
+
           <View style={styles.ratingContainer}>
             <Text style={styles.rating}>⭐ {product.rating}</Text>
             <Text style={styles.reviewCount}>({product.reviewCount} reviews)</Text>
           </View>
 
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>AED {product.price.toFixed(2)}</Text>
+            <Text style={styles.price}>₹ {product.price.toFixed(2)}</Text>
             {product.originalPrice && product.originalPrice > product.price && (
-              <Text style={styles.originalPrice}>AED {product.originalPrice.toFixed(2)}</Text>
+              <Text style={styles.originalPrice}>₹ {product.originalPrice.toFixed(2)}</Text>
             )}
             <Text style={styles.unit}>per {product.unit}</Text>
           </View>
@@ -168,7 +168,7 @@ const ProductDetailsScreen: React.FC = () => {
           {product.originalPrice && product.originalPrice > product.price && (
             <View style={styles.savingsContainer}>
               <Text style={styles.savings}>
-                You save AED {(product.originalPrice - product.price).toFixed(2)}
+                You save ₹ {(product.originalPrice - product.price).toFixed(2)}
               </Text>
             </View>
           )}
@@ -198,7 +198,7 @@ const ProductDetailsScreen: React.FC = () => {
                 <Text style={styles.nutritionLabel}>Fiber</Text>
               </View>
             </View>
-            
+
             {product.nutritionalInfo.vitamins && (
               <View style={styles.vitaminsContainer}>
                 <Text style={styles.vitaminsTitle}>Rich in:</Text>

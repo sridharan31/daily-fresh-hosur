@@ -1,22 +1,22 @@
 // app/screens/orders/OrderTrackingScreen.tsx
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-import { Order } from '../../../lib/types/order';
+import orderManagementService, { OrderWithDetails } from '../../../lib/supabase/services/orderManagement';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Header from '../../components/common/Header';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import {
+  Alert,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from '../../components/ui/WebCompatibleComponents';
 
 interface OrderTrackingRouteParams {
   orderId: string;
@@ -32,114 +32,46 @@ interface TrackingStep {
 
 const { width } = Dimensions.get('window');
 
-const getTrackingSteps = (order: Order): TrackingStep[] => {
+const getTrackingSteps = (order: OrderWithDetails): TrackingStep[] => {
   const steps: TrackingStep[] = [
     {
       id: 'confirmed',
       title: 'Order Confirmed',
       description: 'Your order has been confirmed and is being prepared.',
       status: 'completed',
-      timestamp: order.createdAt,
+      timestamp: order.created_at,
     },
     {
       id: 'processing',
       title: 'Processing',
       description: 'We are preparing your items for delivery.',
-      status: order.status === 'confirmed' ? 'current' : order.status === 'processing' || order.status === 'packed' || order.status === 'out_for_delivery' || order.status === 'delivered' ? 'completed' : 'pending',
-      timestamp: order.status === 'processing' || order.status === 'packed' || order.status === 'out_for_delivery' || order.status === 'delivered' ? order.updatedAt : undefined,
+      status: order.status === 'confirmed' ? 'current' : ['preparing', 'out_for_delivery', 'delivered'].includes(order.status) ? 'completed' : 'pending',
+      timestamp: ['preparing', 'out_for_delivery', 'delivered'].includes(order.status) ? order.updated_at : undefined,
     },
     {
       id: 'packed',
       title: 'Packed',
       description: 'Your order has been packed and is ready for delivery.',
-      status: order.status === 'processing' ? 'current' : order.status === 'packed' || order.status === 'out_for_delivery' || order.status === 'delivered' ? 'completed' : 'pending',
-      timestamp: order.status === 'packed' || order.status === 'out_for_delivery' || order.status === 'delivered' ? order.updatedAt : undefined,
+      status: order.status === 'preparing' ? 'current' : ['out_for_delivery', 'delivered'].includes(order.status) ? 'completed' : 'pending',
+      timestamp: ['out_for_delivery', 'delivered'].includes(order.status) ? order.updated_at : undefined,
     },
     {
       id: 'out_for_delivery',
       title: 'Out for Delivery',
       description: 'Your order is on the way to your delivery address.',
-      status: order.status === 'packed' ? 'current' : order.status === 'out_for_delivery' ? 'current' : order.status === 'delivered' ? 'completed' : 'pending',
-      timestamp: order.status === 'out_for_delivery' || order.status === 'delivered' ? order.updatedAt : undefined,
+      status: order.status === 'out_for_delivery' ? 'current' : order.status === 'delivered' ? 'completed' : 'pending',
+      timestamp: ['out_for_delivery', 'delivered'].includes(order.status) ? order.updated_at : undefined,
     },
     {
       id: 'delivered',
       title: 'Delivered',
       description: 'Your order has been successfully delivered.',
-      status: order.status === 'out_for_delivery' ? 'current' : order.status === 'delivered' ? 'completed' : 'pending',
-      timestamp: order.actualDelivery,
+      status: order.status === 'delivered' ? 'completed' : 'pending',
+      timestamp: order.actual_delivery_time,
     },
   ];
 
   return steps;
-};
-
-// Mock order data - in real app, this would come from API
-const MOCK_ORDER: Order = {
-  id: 'ORD-001',
-  userId: 'user1',
-  items: [
-    {
-      id: 'item1',
-      productId: 'prod1',
-      name: 'Fresh Bananas',
-      image: 'https://via.placeholder.com/100x100/FFE135/000000?text=Banana',
-      unit: 'kg',
-      price: 12.99,
-      discountedPrice: 12.99,
-      quantity: 2,
-      maxQuantity: 50,
-      isAvailable: true,
-      product: {
-        id: 'prod1',
-        name: 'Fresh Bananas',
-        price: 12.99,
-        originalPrice: 15.99,
-        unit: 'kg',
-        category: { id: '1', name: 'Fresh Fruits', image: '', isActive: true },
-        images: ['https://via.placeholder.com/100x100/FFE135/000000?text=Banana'],
-        stock: 50,
-        isOrganic: false,
-        tags: ['fresh', 'fruit'],
-        isActive: true,
-        rating: 4.5,
-        reviewCount: 128,
-        description: 'Fresh bananas',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      totalPrice: 25.98,
-    },
-  ],
-  totalAmount: 25.98,
-  discount: 0,
-  deliveryCharge: 5.00,
-  finalAmount: 30.98,
-  status: 'out_for_delivery',
-  paymentStatus: 'completed',
-  deliverySlot: {
-    id: 'slot1',
-    date: '2024-01-15',
-    time: '14:00-16:00',
-    type: 'evening',
-    capacity: 10,
-    bookedCount: 5,
-    available: true,
-    charge: 5.00,
-    estimatedDelivery: '2024-01-15T16:00:00Z',
-  },
-  deliveryAddress: {
-    id: 'addr1',
-    street: '123 Main Street',
-    city: 'Dubai',
-    state: 'Dubai',
-    pincode: '12345',
-    area: 'Downtown',
-    isDefault: true,
-  },
-  estimatedDelivery: '2024-01-15T16:00:00Z',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-01-15T14:30:00Z',
 };
 
 export const OrderTrackingScreen: React.FC = () => {
@@ -147,26 +79,30 @@ export const OrderTrackingScreen: React.FC = () => {
   const route = useRoute();
   const { orderId } = route.params as OrderTrackingRouteParams;
 
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<OrderWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadOrderDetails();
+    if (orderId) {
+      loadOrderDetails();
+    }
   }, [orderId]);
 
   const loadOrderDetails = async () => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setOrder(MOCK_ORDER);
+      setIsLoading(true);
+      const orderDetails = await orderManagementService.getOrderDetails(orderId);
+      setOrder(orderDetails);
     } catch (error) {
+      console.error('Error loading order tracking:', error);
       Alert.alert('Error', 'Failed to load order tracking. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatDate = (dateString: string): string => {
+  const formatDate = (dateString?: string): string => {
+    if (!dateString) return '';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -230,7 +166,7 @@ export const OrderTrackingScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
+      <Header
         title="Track Order"
         rightActions={[
           {
@@ -243,12 +179,12 @@ export const OrderTrackingScreen: React.FC = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Order Info */}
         <Card style={styles.orderInfoCard}>
-          <Text style={styles.orderId}>Order #{order.id}</Text>
+          <Text style={styles.orderId}>Order #{order.order_number}</Text>
           <Text style={styles.estimatedDelivery}>
-            Estimated delivery: {formatDate(order.estimatedDelivery)}
+            Estimated delivery: {formatDate(order.estimated_delivery_time)}
           </Text>
           <Text style={styles.deliverySlot}>
-            {order.deliverySlot.date} • {order.deliverySlot.time}
+            {order.delivery_slot?.slot_date} • {order.delivery_slot?.slot_type}
           </Text>
         </Card>
 
@@ -259,17 +195,18 @@ export const OrderTrackingScreen: React.FC = () => {
             <Text style={styles.addressTitle}>Delivery Address</Text>
           </View>
           <Text style={styles.addressText}>
-            {order.deliveryAddress.street}, {order.deliveryAddress.area}
+            {order.delivery_address.address_line_1}
+            {order.delivery_address.address_line_2 ? `, ${order.delivery_address.address_line_2}` : ''}
           </Text>
           <Text style={styles.addressText}>
-            {order.deliveryAddress.city}, {order.deliveryAddress.state} {order.deliveryAddress.pincode}
+            {order.delivery_address.city}, {order.delivery_address.state} {order.delivery_address.pincode}
           </Text>
         </Card>
 
         {/* Tracking Timeline */}
         <Card style={styles.timelineCard}>
           <Text style={styles.timelineTitle}>Order Status</Text>
-          
+
           <View style={styles.timeline}>
             {trackingSteps.map((step, index) => (
               <View key={step.id} style={styles.timelineStep}>
@@ -298,7 +235,7 @@ export const OrderTrackingScreen: React.FC = () => {
                     />
                   )}
                 </View>
-                
+
                 <View style={styles.timelineContent}>
                   <Text
                     style={[
@@ -335,11 +272,14 @@ export const OrderTrackingScreen: React.FC = () => {
         <View style={styles.actionButtons}>
           <Button
             title="View Order Details"
-            onPress={() => Alert.alert('Navigation', 'Navigate to Order Details')}
+            onPress={() => {
+              // @ts-ignore
+              navigation.navigate('OrderDetails', { orderId: order.id });
+            }}
             style={styles.detailsButton}
             variant="outline"
           />
-          
+
           {order.status === 'out_for_delivery' && (
             <Button
               title="Contact Delivery Partner"
@@ -479,4 +419,3 @@ const styles = StyleSheet.create({
 });
 
 export default OrderTrackingScreen;
-

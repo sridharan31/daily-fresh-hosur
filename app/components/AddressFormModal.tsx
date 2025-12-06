@@ -1,19 +1,32 @@
 // app/components/AddressFormModal.tsx
-import React, { useState } from 'react';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import React, { useCallback, useState } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { z } from 'zod';
 
-// Simple html div-based modal that works on web
+// Define the address schema for validation
+const addressSchema = z.object({
+  name: z.string().min(3, 'Name must be at least 3 characters'),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Phone number must be 10 digits'),
+  street: z.string().min(5, 'Street address is too short'),
+  city: z.string().min(2, 'City is required'),
+  state: z.string().min(2, 'State is required'),
+  pincode: z.string().regex(/^[0-9]{6}$/, 'PIN code must be 6 digits'),
+  landmark: z.string().optional(),
+  type: z.enum(['home', 'work', 'other']),
+  isDefault: z.boolean().optional(),
+});
+
 export interface Address {
-  id: string;
+  id?: string;
   name: string;
   phone: string;
   street: string;
   city: string;
   state: string;
   pincode: string;
-  type: 'home' | 'work' | 'other';
   landmark?: string;
+  type: 'home' | 'work' | 'other';
   isDefault?: boolean;
 }
 
@@ -21,60 +34,106 @@ interface AddressFormModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (address: Address) => void;
-  initialData?: Partial<Address>;
+  initialData?: Address | null;
   isEdit?: boolean;
   isSubmitting?: boolean;
 }
 
-const phoneRegex = /^[6-9]\d{9}$/;
-const pincodeRegex = /^\d{6}$/;
-
-const addressSchema = z.object({
-  name: z.string().min(3, 'Name is required (min 3 characters)'),
-  phone: z.string().regex(phoneRegex, 'Enter a valid 10-digit Indian mobile number'),
-  street: z.string().min(5, 'Street address is required'),
-  city: z.string().min(2, 'City is required'),
-  state: z.string().min(2, 'State is required'),
-  pincode: z.string().regex(pincodeRegex, 'Enter a valid 6-digit PIN code'),
-  type: z.enum(['home', 'work', 'other']),
-  landmark: z.string().optional(),
-  isDefault: z.boolean().optional(),
-});
-
-const AddressFormModal: React.FC<AddressFormModalProps> = ({ 
-  visible, 
-  onClose, 
-  onSave, 
-  initialData = {},
+const AddressFormModal: React.FC<AddressFormModalProps> = ({
+  visible,
+  onClose,
+  onSave,
+  initialData,
   isEdit = false,
-  isSubmitting = false
+  isSubmitting = false,
 }) => {
   const [formData, setFormData] = useState<Partial<Address>>({
-    name: '',
-    phone: '',
-    street: '',
-    city: '',
-    state: '',
-    pincode: '',
     type: 'home',
-    landmark: '',
     isDefault: false,
-    ...initialData
+    ...initialData,
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [internalSubmitting, setInternalSubmitting] = useState(false);
-  
-  // Use either the prop or internal state for submission status
+  const [showMap, setShowMap] = useState(false);
+  const [mapCenter, setMapCenter] = useState({ lat: 12.7409, lng: 77.8253 }); // Default to Hosur
+  const [selectedLocation, setSelectedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: 'AIzaSyC-9SAU7AfA-0sb1ILZwDwXW8g-wfl-L9E'
+  });
+
+  const onMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (e.latLng) {
+      const lat = e.latLng.lat();
+      const lng = e.latLng.lng();
+      setSelectedLocation({ lat, lng });
+      setMapCenter({ lat, lng });
+    }
+  }, []);
+
+  const handleConfirmLocation = () => {
+    if (selectedLocation) {
+      fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${selectedLocation.lat},${selectedLocation.lng}&key=AIzaSyC-9SAU7AfA-0sb1ILZwDwXW8g-wfl-L9E`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.results && data.results[0]) {
+            const addressComponents = data.results[0].address_components;
+            let street = '';
+            let city = '';
+            let state = '';
+            let pincode = '';
+            let landmark = '';
+
+            console.log("Geocoding results:", data.results[0]);
+
+            addressComponents.forEach((component: any) => {
+              if (component.types.includes('route') || component.types.includes('street_address')) {
+                street = component.long_name;
+              }
+              if (component.types.includes('locality')) {
+                city = component.long_name;
+              }
+              if (component.types.includes('administrative_area_level_1')) {
+                state = component.long_name;
+              }
+              if (component.types.includes('postal_code')) {
+                pincode = component.long_name;
+              }
+              if (component.types.includes('sublocality') || component.types.includes('neighborhood')) {
+                landmark = component.long_name;
+              }
+            });
+
+            if (!street) {
+              street = data.results[0].formatted_address.split(',')[0];
+            }
+
+            setFormData(prev => ({
+              ...prev,
+              street: street,
+              city: city,
+              state: state,
+              pincode: pincode,
+              landmark: landmark
+            }));
+          }
+        })
+        .catch(err => console.error("Geocoding error:", err));
+
+      setShowMap(false);
+    }
+  };
+
   const isFormSubmitting = isSubmitting || internalSubmitting;
-  
+
   const handleChange = (field: keyof Address, value: string | boolean) => {
     setFormData({
       ...formData,
       [field]: value
     });
-    
-    // Clear error when user types
+
     if (errors[field]) {
       setErrors({
         ...errors,
@@ -82,19 +141,17 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
       });
     }
   };
-  
+
   const handleSave = () => {
     try {
       setInternalSubmitting(true);
       addressSchema.parse(formData);
-      
-      // Call the onSave callback with the form data
+
       onSave({
         ...formData as Address,
-        id: formData.id || Date.now().toString(), // Generate a simple ID if not provided
+        id: formData.id || Date.now().toString(),
       });
-      
-      // Reset form if not editing
+
       if (!isEdit) {
         setFormData({
           name: '',
@@ -108,11 +165,8 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
           isDefault: false,
         });
       }
-      
+
       setErrors({});
-      
-      // We'll let the parent component handle the loading state and closing the modal
-      // since it's now an async operation
     } catch (error) {
       if (error instanceof z.ZodError) {
         const newErrors: Record<string, string> = {};
@@ -125,7 +179,7 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
       setInternalSubmitting(false);
     }
   };
-  
+
   const handleAddressTypeSelect = (type: 'home' | 'work' | 'other') => {
     setFormData({
       ...formData,
@@ -135,32 +189,62 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
 
   if (!visible) return null;
 
+  const styles = {
+    overlay: {
+      position: 'fixed' as const,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    modal: {
+      width: '90%',
+      maxWidth: '500px',
+      maxHeight: '90vh',
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    },
+    mapModal: {
+      width: '90%',
+      height: '80%',
+      maxWidth: '800px',
+    },
+  };
+
   return (
-    <div className="address-form-modal-overlay">
-      <div className="address-form-modal">
-        <div className="modal-header">
-          <h2>{isEdit ? 'Edit Address' : 'Add New Address'}</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#333' }}>{isEdit ? 'Edit Address' : 'Add New Address'}</h2>
+          <button onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: '24px', cursor: 'pointer' }}>×</button>
         </div>
-        
-        <div className="modal-body">
-          <div className="form-group">
-            <label>Full Name</label>
-            <div className={`input-container ${errors.name ? 'error' : ''}`}>
+
+        <div style={{ padding: '15px', maxHeight: 'calc(90vh - 130px)', overflowY: 'auto' }}>
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>Full Name</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.name ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.name ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
               <Icon name="person" size={20} />
               <input
                 type="text"
                 placeholder="Enter your full name"
                 value={formData.name || ''}
                 onChange={(e) => handleChange('name', e.target.value)}
+                style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
               />
             </div>
-            {errors.name && <div className="error-message">{errors.name}</div>}
+            {errors.name && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.name}</div>}
           </div>
 
-          <div className="form-group">
-            <label>Phone Number</label>
-            <div className={`input-container ${errors.phone ? 'error' : ''}`}>
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>Phone Number</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.phone ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.phone ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
               <Icon name="phone" size={20} />
               <input
                 type="text"
@@ -168,71 +252,99 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
                 value={formData.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 maxLength={10}
+                style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
               />
             </div>
-            {errors.phone && <div className="error-message">{errors.phone}</div>}
+            {errors.phone && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.phone}</div>}
           </div>
 
-          <div className="form-group">
-            <label>Street Address</label>
-            <div className={`input-container ${errors.street ? 'error' : ''}`}>
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>Street Address</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.street ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.street ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
               <Icon name="home" size={20} />
               <textarea
                 placeholder="Enter your street address"
                 value={formData.street || ''}
                 onChange={(e) => handleChange('street', e.target.value)}
                 rows={2}
+                style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
               />
             </div>
-            {errors.street && <div className="error-message">{errors.street}</div>}
+            {errors.street && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.street}</div>}
           </div>
 
-          <div className="form-group">
-            <label>Landmark (Optional)</label>
-            <div className="input-container">
+          <div style={{ marginBottom: '15px' }}>
+            <button
+              type="button"
+              onClick={() => setShowMap(true)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                backgroundColor: '#e3f2fd',
+                border: '1px dashed #2196f3',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#2196f3',
+                fontWeight: 'bold'
+              }}
+            >
+              <div style={{ marginRight: '8px' }}>📍</div>
+              Select Location on Map
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>Landmark (Optional)</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '8px', backgroundColor: '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
               <Icon name="location-on" size={20} />
               <input
                 type="text"
                 placeholder="Enter nearby landmark"
                 value={formData.landmark || ''}
                 onChange={(e) => handleChange('landmark', e.target.value)}
+                style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
               />
             </div>
           </div>
 
-          <div className="row-container">
-            <div className="form-group half-width">
-              <label>City</label>
-              <div className={`input-container ${errors.city ? 'error' : ''}`}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px' }}>
+            <div style={{ flex: 1, marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>City</label>
+              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.city ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.city ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
                 <Icon name="location-city" size={20} />
                 <input
                   type="text"
                   placeholder="Enter city"
                   value={formData.city || ''}
                   onChange={(e) => handleChange('city', e.target.value)}
+                  style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
                 />
               </div>
-              {errors.city && <div className="error-message">{errors.city}</div>}
+              {errors.city && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.city}</div>}
             </div>
 
-            <div className="form-group half-width">
-              <label>State</label>
-              <div className={`input-container ${errors.state ? 'error' : ''}`}>
+            <div style={{ flex: 1, marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>State</label>
+              <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.state ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.state ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
                 <Icon name="map" size={20} />
                 <input
                   type="text"
                   placeholder="Enter state"
                   value={formData.state || ''}
                   onChange={(e) => handleChange('state', e.target.value)}
+                  style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
                 />
               </div>
-              {errors.state && <div className="error-message">{errors.state}</div>}
+              {errors.state && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.state}</div>}
             </div>
           </div>
 
-          <div className="form-group">
-            <label>PIN Code</label>
-            <div className={`input-container ${errors.pincode ? 'error' : ''}`}>
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>PIN Code</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: `1px solid ${errors.pincode ? '#ff4d4f' : '#ddd'}`, borderRadius: '8px', backgroundColor: errors.pincode ? '#fff2f0' : '#f9f9f9', overflow: 'hidden', padding: '0 12px' }}>
               <Icon name="pin-drop" size={20} />
               <input
                 type="text"
@@ -240,65 +352,123 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
                 value={formData.pincode || ''}
                 onChange={(e) => handleChange('pincode', e.target.value)}
                 maxLength={6}
+                style={{ flex: 1, padding: '12px', border: 'none', background: 'transparent', fontSize: '16px', color: '#333', outline: 'none', width: '100%' }}
               />
             </div>
-            {errors.pincode && <div className="error-message">{errors.pincode}</div>}
+            {errors.pincode && <div style={{ display: 'flex', alignItems: 'center', color: 'red', fontSize: '12px', marginTop: '6px' }}>{errors.pincode}</div>}
           </div>
 
-          <div className="form-group">
-            <label>Address Type</label>
-            <div className="address-type-buttons">
+          <div style={{ marginBottom: '18px' }}>
+            <label style={{ display: 'block', fontSize: '16px', marginBottom: '6px', fontWeight: 500, color: '#333' }}>Address Type</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                className={`type-button ${formData.type === 'home' ? 'selected' : ''}`}
                 onClick={() => handleAddressTypeSelect('home')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: formData.type === 'home' ? '#4CAF50' : '#f9f9f9',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <Icon name="home" size={18} />
-                <span>Home</span>
+                <Icon name="home" size={18} color={formData.type === 'home' ? 'white' : '#555'} />
+                <span style={{ marginLeft: '6px', color: formData.type === 'home' ? 'white' : '#555', fontWeight: formData.type === 'home' ? 'bold' : 500 }}>Home</span>
               </button>
-              
+
               <button
                 type="button"
-                className={`type-button ${formData.type === 'work' ? 'selected' : ''}`}
                 onClick={() => handleAddressTypeSelect('work')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: formData.type === 'work' ? '#4CAF50' : '#f9f9f9',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <Icon name="business" size={18} />
-                <span>Work</span>
+                <Icon name="business" size={18} color={formData.type === 'work' ? 'white' : '#555'} />
+                <span style={{ marginLeft: '6px', color: formData.type === 'work' ? 'white' : '#555', fontWeight: formData.type === 'work' ? 'bold' : 500 }}>Work</span>
               </button>
-              
+
               <button
                 type="button"
-                className={`type-button ${formData.type === 'other' ? 'selected' : ''}`}
                 onClick={() => handleAddressTypeSelect('other')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: formData.type === 'other' ? '#4CAF50' : '#f9f9f9',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
               >
-                <Icon name="place" size={18} />
-                <span>Other</span>
+                <Icon name="place" size={18} color={formData.type === 'other' ? 'white' : '#555'} />
+                <span style={{ marginLeft: '6px', color: formData.type === 'other' ? 'white' : '#555', fontWeight: formData.type === 'other' ? 'bold' : 500 }}>Other</span>
               </button>
             </div>
           </div>
 
-          <div className="form-group">
-            <div 
-              className="default-address-container"
+          <div style={{ marginBottom: '18px' }}>
+            <div
               onClick={() => handleChange('isDefault', !formData.isDefault)}
+              style={{ display: 'flex', alignItems: 'center', marginTop: '10px', padding: '8px', cursor: 'pointer' }}
             >
-              <div className={`checkbox ${formData.isDefault ? 'checked' : ''}`}>
-                {formData.isDefault && <Icon name="check" size={16} />}
+              <div style={{
+                width: '22px',
+                height: '22px',
+                borderRadius: '4px',
+                border: '2px solid #4CAF50',
+                marginRight: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: formData.isDefault ? '#4CAF50' : 'transparent',
+              }}>
+                {formData.isDefault && <Icon name="check" size={16} color="white" />}
               </div>
               <span>Set as default delivery address</span>
             </div>
           </div>
         </div>
-        
-        <div className="modal-footer">
-          <button 
-            className={`save-button ${isFormSubmitting ? 'disabled' : ''}`}
+
+        <div style={{ padding: '15px', borderTop: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
+          <button
             onClick={handleSave}
             disabled={isFormSubmitting}
+            style={{
+              width: '100%',
+              backgroundColor: isFormSubmitting ? '#a5d6a7' : '#4CAF50',
+              color: 'white',
+              padding: '15px',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: isFormSubmitting ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s ease',
+            }}
           >
             {isFormSubmitting ? (
               <>
-                <span className="spinner"></span>
+                <span style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '50%', borderTopColor: 'white', animation: 'spin 1s linear infinite' }}></span>
                 <span style={{ marginLeft: '10px' }}>Saving...</span>
               </>
             ) : (
@@ -307,228 +477,65 @@ const AddressFormModal: React.FC<AddressFormModalProps> = ({
           </button>
         </div>
       </div>
-      
-      <style jsx>{`
-        .address-form-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          z-index: 1000;
-        }
-        
-        .address-form-modal {
-          width: 90%;
-          max-width: 500px;
-          max-height: 90vh;
-          background-color: white;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 15px;
-          border-bottom: 1px solid #eee;
-          background-color: #f9f9f9;
-        }
-        
-        .modal-header h2 {
-          font-size: 18px;
-          font-weight: bold;
-          margin: 0;
-          color: #333;
-        }
-        
-        .close-button {
-          background: #f1f1f1;
-          border: none;
-          border-radius: 50%;
-          width: 36px;
-          height: 36px;
-          font-size: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: #555;
-        }
-        
-        .modal-body {
-          padding: 15px;
-          max-height: calc(90vh - 130px);
-          overflow-y: auto;
-        }
-        
-        .form-group {
-          margin-bottom: 18px;
-        }
-        
-        .form-group label {
-          display: block;
-          font-size: 16px;
-          margin-bottom: 6px;
-          font-weight: 500;
-          color: #333;
-        }
-        
-        .input-container {
-          display: flex;
-          align-items: center;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-          overflow: hidden;
-          padding: 0 12px;
-        }
-        
-        .input-container.error {
-          border-color: #ff4d4f;
-          background-color: #fff2f0;
-        }
-        
-        .input-container input,
-        .input-container textarea {
-          flex: 1;
-          padding: 12px;
-          border: none;
-          background: transparent;
-          font-size: 16px;
-          color: #333;
-          outline: none;
-          width: 100%;
-        }
-        
-        .error-message {
-          display: flex;
-          align-items: center;
-          color: red;
-          font-size: 12px;
-          margin-top: 6px;
-        }
-        
-        .row-container {
-          display: flex;
-          justify-content: space-between;
-          gap: 15px;
-        }
-        
-        .half-width {
-          flex: 1;
-        }
-        
-        .address-type-buttons {
-          display: flex;
-          gap: 10px;
-        }
-        
-        .type-button {
-          flex: 1;
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          justify-content: center;
-          padding: 12px;
-          border: 1px solid #ddd;
-          border-radius: 8px;
-          background-color: #f9f9f9;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        
-        .type-button span {
-          margin-left: 6px;
-          color: #555;
-          font-weight: 500;
-        }
-        
-        .type-button.selected {
-          background-color: #4CAF50;
-          border-color: #4CAF50;
-        }
-        
-        .type-button.selected span {
-          color: white;
-          font-weight: bold;
-        }
-        
-        .default-address-container {
-          display: flex;
-          align-items: center;
-          margin-top: 10px;
-          padding: 8px;
-          cursor: pointer;
-        }
-        
-        .checkbox {
-          width: 22px;
-          height: 22px;
-          border-radius: 4px;
-          border: 2px solid #4CAF50;
-          margin-right: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .checkbox.checked {
-          background-color: #4CAF50;
-        }
-        
-        .checkbox.checked svg {
-          color: white;
-        }
-        
-        .modal-footer {
-          padding: 15px;
-          border-top: 1px solid #eee;
-          background-color: #f9f9f9;
-        }
-        
-        .save-button {
-          width: 100%;
-          background-color: #4CAF50;
-          color: white;
-          padding: 15px;
-          border: none;
-          border-radius: 8px;
-          font-size: 16px;
-          font-weight: bold;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-        }
-        
-        .save-button:hover {
-          background-color: #3d9140;
-        }
-        
-        .save-button.disabled {
-          background-color: #a5d6a7;
-          cursor: not-allowed;
-        }
-        
-        .spinner {
-          display: inline-block;
-          width: 20px;
-          height: 20px;
-          border: 2px solid rgba(255,255,255,0.3);
-          border-radius: 50%;
-          border-top-color: white;
-          animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-          to {transform: rotate(360deg);}
-        }
-      `}</style>
+
+      {showMap && isLoaded && (
+        <div style={{ ...styles.overlay, zIndex: 1100 }}>
+          <div style={{ ...styles.modal, ...styles.mapModal }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', borderBottom: '1px solid #eee', backgroundColor: '#f9f9f9' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#333' }}>Select Location</h2>
+              <button
+                onClick={() => setShowMap(false)}
+                style={{ border: 'none', background: 'transparent', fontSize: '24px', cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ height: 'calc(100% - 120px)', padding: 0 }}>
+              <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '100%' }}
+                center={mapCenter}
+                zoom={14}
+                onClick={onMapClick}
+              >
+                {selectedLocation && (
+                  <Marker position={selectedLocation} />
+                )}
+              </GoogleMap>
+            </div>
+            <div style={{ padding: '20px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowMap(false)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  border: '1px solid #ddd',
+                  background: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLocation}
+                disabled={!selectedLocation}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  border: 'none',
+                  background: selectedLocation ? '#4CAF50' : '#ccc',
+                  color: 'white',
+                  cursor: selectedLocation ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold'
+                }}
+              >
+                Confirm Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

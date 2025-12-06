@@ -1,4 +1,4 @@
- // src/navigation/MainTabNavigator.js
+// src/navigation/MainTabNavigator.js
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
@@ -15,6 +15,7 @@ import ProductDetailsScreen from '../../src/screens/home/ProductDetailsScreen';
 import SearchScreen from '../../src/screens/home/SearchScreen';
 import OrderDetailsScreen from '../../src/screens/orders/OrderDetailsScreen';
 import OrderHistoryScreen from '../../src/screens/orders/OrderHistoryScreen';
+import OrderTrackingScreen from '../../src/screens/orders/OrderTrackingScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -40,20 +41,21 @@ const OrderStack = () => (
   <Stack.Navigator>
     <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
     <Stack.Screen name="OrderDetails" component={OrderDetailsScreen} />
+    <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
   </Stack.Navigator>
 );
 
 const MainTabNavigator = () => {
   return (
     <Tab.Navigator
-      screenOptions={({route}) => ({
-        tabBarIcon: ({focused, color, size}) => {
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
           let iconName;
           if (route.name === 'HomeTab') iconName = 'home';
           else if (route.name === 'CartTab') iconName = 'shopping-cart';
           else if (route.name === 'OrdersTab') iconName = 'receipt';
           else if (route.name === 'ProfileTab') iconName = 'person';
-          
+
           return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#4CAF50',
@@ -61,10 +63,10 @@ const MainTabNavigator = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen name="HomeTab" component={HomeStack} options={{title: 'Home'}} />
-      <Tab.Screen name="CartTab" component={CartStack} options={{title: 'Cart'}} />
-      <Tab.Screen name="OrdersTab" component={OrderStack} options={{title: 'Orders'}} />
-      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{title: 'Profile'}} />
+      <Tab.Screen name="HomeTab" component={HomeStack} options={{ title: 'Home' }} />
+      <Tab.Screen name="CartTab" component={CartStack} options={{ title: 'Cart' }} />
+      <Tab.Screen name="OrdersTab" component={OrderStack} options={{ title: 'Orders' }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
 };
