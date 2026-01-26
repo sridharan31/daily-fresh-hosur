@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { couponService } from '../../lib/services/business/couponService';
 import { AppDispatch } from '../../lib/supabase/store';
 import {
-    addToCart,
-    clearCart,
-    fetchCart,
-    removeFromCart,
-    updateCartItemQuantity
+  addToCart,
+  clearCart,
+  fetchCart,
+  removeFromCart,
+  updateCartItemQuantity
 } from '../../lib/supabase/store/actions/cartActions';
+import { removeCoupon, setCoupon, setDiscount } from '../../lib/supabase/store/cartSlice';
 import { RootState } from '../../lib/supabase/store/rootReducer';
 import { Product } from '../../lib/types/product';
 import Config from '../config/environment';
@@ -17,7 +19,7 @@ export const useCart = () => {
   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
   
   // Get cart state from Supabase store
-  const { items = [], isLoading, error } = useSelector((state: RootState) => state.cart);
+  const { items = [], isLoading, error, coupon, discount } = useSelector((state: RootState) => state.cart);
   
   // Make sure items is always an array
   const safeItems = items || [];
@@ -25,16 +27,24 @@ export const useCart = () => {
   // Calculate cart totals
   const subtotal = safeItems.reduce((total, item) => {
     // Use product price if available, multiply by quantity
-    if (item.product && typeof item.product.price === 'number') {
-      return total + (item.product.price * item.quantity);
-    }
-    return total;
+    const itemPrice = item.price || (item.product && item.product.price) || 0;
+    const itemQuantity = item.quantity || 0;
+    return total + (itemPrice * itemQuantity);
   }, 0);
   
-  const itemCount = safeItems.reduce((count, item) => count + item.quantity, 0);
-  const deliveryCharge = subtotal > Config.FREE_DELIVERY_THRESHOLD || 50 ? 0 : Config.STANDARD_DELIVERY_CHARGE || 5;
-  const vatAmount = subtotal * 0.05; // 5% VAT
-  const total = subtotal + deliveryCharge + vatAmount;
+  const itemCount = safeItems.reduce((count, item) => count + (item.quantity || 0), 0);
+  
+  // Calculate valid discount
+  let calculatedDiscount = discount || 0;
+  if (coupon) {
+    calculatedDiscount = couponService.calculateDiscount(coupon, subtotal);
+  }
+  
+  const discountedSubtotal = Math.max(0, subtotal - calculatedDiscount);
+  
+  const deliveryCharge = discountedSubtotal > (Config.FREE_DELIVERY_THRESHOLD || 500) ? 0 : (Config.STANDARD_DELIVERY_CHARGE || 25);
+  const vatAmount = discountedSubtotal * 0.05; // 5% VAT on discounted amount (or original, depends on policy)
+  const total = discountedSubtotal + deliveryCharge + vatAmount;
   
   // Add a product to the cart
   const addItem = useCallback(async (product: Product, quantity: number = 1) => {
@@ -187,9 +197,7 @@ export const useCart = () => {
     return safeItems.some(item => item.product?.id === productId);
   }, [safeItems]);
   
-  // For backward compatibility - syncCart was used in some components
   const syncCart = useCallback(async () => {
-    // This function just refreshes the cart from the server
     if (isAuthenticated && user) {
       try {
         await dispatch(fetchCart(user.id));
@@ -199,25 +207,40 @@ export const useCart = () => {
     }
   }, [dispatch, isAuthenticated, user]);
 
-  // Additional backward compatibility functions
-  // These were in the old cart hook but are not used in the new Supabase implementation
   const applyCoupon = useCallback(async (code: string) => {
-    console.warn('applyCoupon is not implemented in the new Supabase cart hook');
-    return null;
-  }, []);
+    if (!code) return;
+    
+    // Calculate subtotal inside
+    const currentSubtotal = safeItems.reduce((total, item) => {
+      if (item.product && typeof item.product.price === 'number') {
+        return total + (item.product.price * item.quantity);
+      }
+      return total;
+    }, 0);
+
+    const result = await couponService.validateCoupon(code, currentSubtotal);
+    
+    if (result.valid && result.coupon) {
+      const discountAmount = couponService.calculateDiscount(result.coupon, currentSubtotal);
+      dispatch(setCoupon(result.coupon));
+      dispatch(setDiscount(discountAmount));
+      return result.coupon;
+    } else {
+      throw new Error(result.error || 'Invalid coupon');
+    }
+  }, [dispatch, safeItems]);
 
   const removeCouponCode = useCallback(async () => {
-    console.warn('removeCouponCode is not implemented in the new Supabase cart hook');
-  }, []);
+    dispatch(removeCoupon());
+  }, [dispatch]);
 
-  // Dummy values for backward compatibility
-  const appliedCoupon = null;
-  const discount = 0;
+  // Use the discount from state (which is synched with coupon)
+  const appliedCoupon = coupon;
 
   return {
     // State
     items: safeItems,
-    rawItems: safeItems, // Add rawItems alias for backward compatibility
+    rawItems: safeItems,
     subtotal,
     itemCount,
     isLoading,
@@ -225,9 +248,9 @@ export const useCart = () => {
     deliveryCharge,
     vatAmount,
     total,
-    discount, // Added for backward compatibility
-    appliedCoupon, // Added for backward compatibility
-    loading: isLoading, // Alias for backward compatibility
+    discount: calculatedDiscount,
+    appliedCoupon,
+    loading: isLoading,
     
     // Actions
     addItem,
@@ -235,17 +258,18 @@ export const useCart = () => {
     updateItemQuantity,
     clearAllItems,
     refreshCart,
-    syncCart, // Added for backward compatibility
-    applyCoupon, // Added for backward compatibility
-    removeCouponCode, // Added for backward compatibility
+    syncCart,
+    applyCoupon,
+    removeCouponCode,
     
     // Utils
     getItemQuantity,
     isItemInCart,
     
-    // For compatibility with the old cart hook
+    // Compatibility
     emptyCart: clearAllItems,
-    updateItem: updateItemQuantity
+    updateItem: updateItemQuantity,
+    cartItemCount: itemCount
   };
 };
 

@@ -4,7 +4,8 @@ import { supabase } from '../client';
 export interface User {
   id: string;
   email: string;
-  full_name: string;
+  firstName: string;
+  lastName: string;
   phone: string | null;
   role: 'customer' | 'admin' | 'delivery';
   is_verified: boolean;
@@ -13,6 +14,7 @@ export interface User {
   preferences?: {
     language: string;
   };
+  address?: any; // To match frontend expectations roughly
 }
 
 export interface AuthResponse {
@@ -36,10 +38,16 @@ export interface SignUpData {
 
 // Map Supabase user data to our application's User type
 const mapSupabaseUser = (user: SupabaseUser): User => {
+  const fullName = user.user_metadata?.full_name || '';
+  const nameParts = fullName.split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
   return {
     id: user.id,
     email: user.email || '',
-    full_name: user.user_metadata?.full_name || '',
+    firstName,
+    lastName,
     phone: user.user_metadata?.phone || null,
     role: user.user_metadata?.role || 'customer',
     is_verified: user.email_confirmed_at ? true : false,

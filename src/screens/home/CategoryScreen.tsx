@@ -1,12 +1,12 @@
 import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -82,11 +82,11 @@ const SORT_OPTIONS = [
 export const CategoryScreen: React.FC = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  
+
   // Get category info from route params
-  const { categoryId, categoryName } = route.params as { 
-    categoryId: string; 
-    categoryName: string; 
+  const { categoryId, categoryName } = route.params as {
+    categoryId: string;
+    categoryName: string;
   } || { categoryId: '1', categoryName: 'Fresh Fruits' };
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -117,7 +117,7 @@ export const CategoryScreen: React.FC = () => {
 
   const sortProducts = () => {
     const sortedProducts = [...products];
-    
+
     switch (sortBy) {
       case 'price_asc':
         sortedProducts.sort((a, b) => a.price - b.price);
@@ -135,7 +135,7 @@ export const CategoryScreen: React.FC = () => {
         // Keep original order
         break;
     }
-    
+
     setProducts(sortedProducts);
   };
 
@@ -144,7 +144,7 @@ export const CategoryScreen: React.FC = () => {
   };
 
   const handleAddToCart = (product: Product) => {
-    Alert.alert('Success', `${product.name} added to cart!`);
+    // Silent add - logic handled by hook inside ProductCard component
   };
 
   const handleSortPress = () => {

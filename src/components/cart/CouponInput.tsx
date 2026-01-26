@@ -2,18 +2,17 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { Coupon } from '../../../lib/types/cart';
+import { Coupon, couponService } from '../../../lib/services/business/couponService';
 
 interface CouponInputProps {
-  appliedCoupon?: Coupon | null;
+  appliedCoupon?: Coupon | any | null;
   loading?: boolean;
   onApplyCoupon: (code: string) => Promise<void>;
   onRemoveCoupon: () => void;
@@ -31,33 +30,47 @@ const CouponInput: React.FC<CouponInputProps> = ({
 }) => {
   const [couponCode, setCouponCode] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
+  const [publicCoupons, setPublicCoupons] = useState<Coupon[]>([]);
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
+  React.useEffect(() => {
+    fetchPublicCoupons();
+  }, []);
+
+  const fetchPublicCoupons = async () => {
+    try {
+      const coupons = await couponService.getPublicCoupons();
+      setPublicCoupons(coupons);
+    } catch (error) {
+      console.error('Error fetching public coupons:', error);
+    }
+  };
 
   const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
-      Alert.alert('Invalid Code', 'Please enter a coupon code');
+      setStatus({ type: 'error', message: 'Please enter a coupon code' });
       return;
     }
 
+    setStatus(null);
     try {
       await onApplyCoupon(couponCode.trim().toUpperCase());
       setCouponCode('');
+      setStatus({ type: 'success', message: 'Coupon applied successfully!' });
     } catch (error: any) {
-      Alert.alert('Invalid Coupon', error.message || 'Please check your coupon code and try again');
+      setStatus({ type: 'error', message: error.message || 'Invalid coupon code' });
     }
   };
 
   const handleRemoveCoupon = () => {
-    Alert.alert(
-      'Remove Coupon',
-      `Remove coupon "${appliedCoupon?.code}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', onPress: onRemoveCoupon, style: 'destructive' },
-      ]
-    );
+    onRemoveCoupon();
+    setStatus(null);
   };
 
   if (appliedCoupon) {
+    const type = appliedCoupon.discount_type || appliedCoupon.type || appliedCoupon.discountType;
+    const value = appliedCoupon.discount_value || appliedCoupon.value;
+
     return (
       <View style={styles.appliedContainer}>
         <View style={styles.appliedContent}>
@@ -65,9 +78,9 @@ const CouponInput: React.FC<CouponInputProps> = ({
           <View style={styles.appliedTextContainer}>
             <Text style={styles.appliedCode}>{appliedCoupon.code}</Text>
             <Text style={styles.appliedDescription}>
-              {appliedCoupon.type === 'percentage'
-                ? `${appliedCoupon.value}% off`
-                : `₹${appliedCoupon.value} off`
+              {type === 'percentage'
+                ? `${value}% off`
+                : `₹${value} off`
               }
             </Text>
           </View>
@@ -121,33 +134,41 @@ const CouponInput: React.FC<CouponInputProps> = ({
         </TouchableOpacity>
       </View>
 
-      {/* Popular coupons suggestions */}
-      <View style={styles.suggestionsContainer}>
-        <Text style={styles.suggestionsTitle}>Popular offers:</Text>
-        <View style={styles.suggestionsRow}>
-          <TouchableOpacity
-            onPress={() => setCouponCode('WELCOME10')}
-            style={styles.suggestionChip}
-            disabled={disabled || loading}
-          >
-            <Text style={styles.suggestionText}>WELCOME10</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setCouponCode('SAVE20')}
-            style={styles.suggestionChip}
-            disabled={disabled || loading}
-          >
-            <Text style={styles.suggestionText}>SAVE20</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setCouponCode('FREESHIP')}
-            style={styles.suggestionChip}
-            disabled={disabled || loading}
-          >
-            <Text style={styles.suggestionText}>FREESHIP</Text>
-          </TouchableOpacity>
+      {status && (
+        <View style={[styles.statusContainer, status.type === 'error' ? styles.errorStatus : styles.successStatus]}>
+          <Icon name={status.type === 'error' ? 'error-outline' : 'check-circle-outline'} size={16} color={status.type === 'error' ? '#e74c3c' : '#27ae60'} />
+          <Text style={[styles.statusText, status.type === 'error' ? styles.errorStatusText : styles.successStatusText]}>
+            {status.message}
+          </Text>
         </View>
-      </View>
+      )}
+
+      {/* Popular coupons suggestions */}
+      {publicCoupons.length > 0 && (
+        <View style={styles.suggestionsContainer}>
+          <Text style={styles.suggestionsTitle}>Available Offers:</Text>
+          <View style={styles.suggestionsRow}>
+            {publicCoupons.map((coupon) => (
+              <TouchableOpacity
+                key={coupon.id}
+                onPress={() => {
+                  setCouponCode(coupon.code);
+                  setStatus(null);
+                }}
+                style={styles.suggestionChip}
+                disabled={disabled || loading}
+              >
+                <View style={styles.chipContent}>
+                  <Text style={styles.suggestionText}>{coupon.code}</Text>
+                  <Text style={styles.suggestionValue}>
+                    {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -267,7 +288,34 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 11,
     color: '#4CAF50',
-    fontWeight: '500',
+    fontWeight: 'bold',
+  },
+  suggestionValue: {
+    fontSize: 10,
+    color: '#666',
+    marginLeft: 4,
+  },
+  chipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    marginLeft: 6,
+  },
+  errorStatus: {},
+  errorStatusText: {
+    color: '#e74c3c',
+  },
+  successStatus: {},
+  successStatusText: {
+    color: '#27ae60',
   },
 });
 

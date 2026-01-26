@@ -33,7 +33,7 @@ const StatsCard: React.FC<{
   color: string;
   onPress?: () => void;
 }> = ({ title, value, icon, color, onPress }) => (
-  <TouchableOpacity 
+  <TouchableOpacity
     activeOpacity={0.8}
     style={[styles.statsCard, { borderLeftColor: color }]}
     onPress={onPress}
@@ -51,12 +51,12 @@ const StatsCard: React.FC<{
 const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
-  
+
   // Get admin state with fallback for undefined dashboardData
   const adminState = useSelector((state: RootState) => state.admin);
   const dashboardData = adminState?.dashboardData || createDefaultDashboardData();
   const isLoading = adminState?.loading || false;
-  
+
   const [selectedPeriod, setSelectedPeriod] = useState('today');
 
   const handleLogout = async () => {
@@ -257,7 +257,7 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Sales Trend</Text>
         {dashboardData?.salesTrend?.labels && dashboardData?.salesTrend?.data &&
-         dashboardData.salesTrend.labels.length > 0 && dashboardData.salesTrend.data.length > 0 ? (
+          dashboardData.salesTrend.labels.length > 0 && dashboardData.salesTrend.data.length > 0 ? (
           <LineChart
             data={{
               labels: dashboardData.salesTrend.labels,
@@ -282,8 +282,8 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
       {/* Top Products Chart */}
       <View style={styles.chartContainer}>
         <Text style={styles.chartTitle}>Top Selling Products</Text>
-        {dashboardData?.topProducts?.labels && dashboardData?.topProducts?.data && 
-         dashboardData.topProducts.labels.length > 0 && dashboardData.topProducts.data.length > 0 ? (
+        {dashboardData?.topProducts?.labels && dashboardData?.topProducts?.data &&
+          dashboardData.topProducts.labels.length > 0 && dashboardData.topProducts.data.length > 0 ? (
           <BarChart
             data={{
               labels: dashboardData.topProducts.labels,
@@ -339,6 +339,16 @@ const AdminDashboardScreen: React.FC<{ navigation: NavigationProps }> = ({ navig
           >
             <Icon name="schedule" size={24} color="#2196F3" />
             <Text style={styles.actionButtonText}>Manage Slots</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('CouponManagement')}
+          >
+            <Icon name="local-offer" size={24} color="#E91E63" />
+            <Text style={styles.actionButtonText}>Coupons</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

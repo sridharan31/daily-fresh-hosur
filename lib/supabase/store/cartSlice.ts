@@ -1,4 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Coupon } from '../../services/business/couponService';
 import { CartItem } from '../services/cart';
 import {
     addToCart,
@@ -12,12 +13,16 @@ interface CartState {
   items: CartItem[];
   isLoading: boolean;
   error: string | null;
+  coupon: Coupon | null;
+  discount: number;
 }
 
 const initialState: CartState = {
   items: [],
   isLoading: false,
-  error: null
+  error: null,
+  coupon: null,
+  discount: 0
 };
 
 const cartSlice = createSlice({
@@ -26,6 +31,16 @@ const cartSlice = createSlice({
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    setCoupon: (state, action: PayloadAction<Coupon>) => {
+      state.coupon = action.payload;
+    },
+    removeCoupon: (state) => {
+      state.coupon = null;
+      state.discount = 0;
+    },
+    setDiscount: (state, action: PayloadAction<number>) => {
+      state.discount = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -94,6 +109,8 @@ const cartSlice = createSlice({
       .addCase(clearCart.fulfilled, (state) => {
         state.isLoading = false;
         state.items = [];
+        state.coupon = null;
+        state.discount = 0;
       })
       .addCase(clearCart.rejected, (state, action) => {
         state.isLoading = false;
@@ -102,5 +119,5 @@ const cartSlice = createSlice({
   }
 });
 
-export const { clearError } = cartSlice.actions;
+export const { clearError, setCoupon, removeCoupon, setDiscount } = cartSlice.actions;
 export default cartSlice.reducer;

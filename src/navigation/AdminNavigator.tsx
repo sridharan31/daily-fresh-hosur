@@ -57,6 +57,9 @@ export type AdminStackParamList = {
 
   // Admin User Management
   AdminUserManagement: undefined;
+
+  // Coupon Management
+  CouponManagement: undefined;
 };
 
 export type AdminTabParamList = {
@@ -93,6 +96,7 @@ import SlotManagementScreen from '../../src/screens/admin/SlotManagementScreen';
 
 // Sub-screens for detailed management
 import CategoryManagementScreen from '../../src/screens/admin/CategoryManagementScreen';
+import CouponManagementScreen from '../../src/screens/admin/CouponManagementScreen';
 import AddProductScreen from '../../src/screens/admin/products/AddProductScreen';
 import EditProductScreen from '../../src/screens/admin/products/EditProductScreen';
 import ProductDetailsScreen from '../../src/screens/admin/products/ProductDetailsScreen';
@@ -142,6 +146,12 @@ const CustomDrawerContent: React.FC<DrawerContentComponentProps> = ({ navigation
       title: 'Profile',
       icon: 'person',
       onPress: () => navigation.navigate('Profile'),
+    },
+    {
+      id: 'coupons',
+      title: 'Coupons',
+      icon: 'local-offer',
+      onPress: () => navigation.navigate('CouponManagement'),
     },
     {
       id: 'slot-management',
@@ -694,6 +704,24 @@ const AdminNavigator: React.FC = () => {
           },
           headerTintColor: '#fff',
           title: 'Admin User Management',
+        }}
+      />
+
+      <Stack.Screen
+        name="CouponManagement"
+        component={CouponManagementScreen}
+        options={{
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: '#4CAF50',
+          },
+          headerTitleStyle: {
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fff',
+          },
+          headerTintColor: '#fff',
+          title: 'Coupon Management',
         }}
       />
     </Stack.Navigator>

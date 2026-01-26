@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import adminService, { AdminUser } from '../../../lib/services/admin/adminService';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import Input from '../../components/common/Input';
@@ -49,18 +51,6 @@ export const ADMIN_ROLES = {
 
 export type AdminRole = keyof typeof ADMIN_ROLES;
 
-interface AdminUser {
-  id: string;
-  email: string;
-  name: string;
-  role: AdminRole;
-  isActive: boolean;
-  lastLogin?: Date;
-  createdAt: Date;
-  createdBy: string;
-  permissions: readonly string[];
-}
-
 interface AdminUserFormData {
   email: string;
   name: string;
@@ -78,6 +68,7 @@ export const AdminUserManagementScreen: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState<AdminRole | 'ALL'>('ALL');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const notification = useNotification();
 
@@ -99,45 +90,14 @@ export const AdminUserManagementScreen: React.FC = () => {
   const loadAdminUsers = async () => {
     setLoading(true);
     try {
-      // Mock data for now - replace with actual API call
-      const mockUsers: AdminUser[] = [
-        {
-          id: '1',
-          email: 'admin@grocery.com',
-          name: 'Super Admin',
-          role: 'SUPER_ADMIN',
-          isActive: true,
-          lastLogin: new Date(),
-          createdAt: new Date('2024-01-01'),
-          createdBy: 'system',
-          permissions: [...ADMIN_ROLES.SUPER_ADMIN.permissions],
-        },
-        {
-          id: '2',
-          email: 'inventory@grocery.com',
-          name: 'John Smith',
-          role: 'INVENTORY_MANAGER',
-          isActive: true,
-          lastLogin: new Date('2024-09-29'),
-          createdAt: new Date('2024-02-15'),
-          createdBy: '1',
-          permissions: [...ADMIN_ROLES.INVENTORY_MANAGER.permissions],
-        },
-        {
-          id: '3',
-          email: 'orders@grocery.com',
-          name: 'Sarah Johnson',
-          role: 'ORDER_MANAGER',
-          isActive: false,
-          lastLogin: new Date('2024-09-20'),
-          createdAt: new Date('2024-03-10'),
-          createdBy: '1',
-          permissions: [...ADMIN_ROLES.ORDER_MANAGER.permissions],
-        },
-      ];
-      setAdminUsers(mockUsers);
+      const users = await adminService.fetchAdminUsers({
+        searchQuery,
+        role: filterRole === 'ALL' ? undefined : filterRole,
+      });
+      setAdminUsers(users);
     } catch (error) {
       notification.showError('Failed to load admin users');
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -177,60 +137,85 @@ export const AdminUserManagementScreen: React.FC = () => {
   const handleCreateUser = async () => {
     if (!validateForm()) return;
 
+    setIsSubmitting(true);
     try {
-      const newUser: AdminUser = {
-        id: Date.now().toString(),
+      await adminService.createAdminUser({
         email: formData.email,
+        password: formData.password,
         name: formData.name,
         role: formData.role,
-        isActive: formData.isActive,
-        createdAt: new Date(),
-        createdBy: 'current-admin-id', // Replace with actual current admin ID
-        permissions: [...ADMIN_ROLES[formData.role].permissions],
-      };
-
-      setAdminUsers(prev => [...prev, newUser]);
+      });
       notification.showSuccess('Admin user created successfully');
       resetForm();
       setShowCreateModal(false);
+      await loadAdminUsers();
     } catch (error) {
-      notification.showError('Failed to create admin user');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create admin user';
+      notification.showError(errorMessage);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEditUser = async () => {
     if (!validateForm() || !selectedUser) return;
 
+    setIsSubmitting(true);
     try {
-      const updatedUser: AdminUser = {
-        ...selectedUser,
-        email: formData.email,
+      await adminService.updateAdminUser(selectedUser.id, {
         name: formData.name,
         role: formData.role,
         isActive: formData.isActive,
-        permissions: [...ADMIN_ROLES[formData.role].permissions],
-      };
-
-      setAdminUsers(prev => 
-        prev.map(user => user.id === selectedUser.id ? updatedUser : user)
-      );
+      });
       notification.showSuccess('Admin user updated successfully');
       resetForm();
       setShowEditModal(false);
       setSelectedUser(null);
+      await loadAdminUsers();
     } catch (error) {
-      notification.showError('Failed to update admin user');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update admin user';
+      notification.showError(errorMessage);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    Alert.alert(
+      'Delete Admin User',
+      'Are you sure you want to delete this admin user? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await adminService.deleteAdminUser(userId);
+              notification.showSuccess('Admin user deleted successfully');
+              await loadAdminUsers();
+            } catch (error) {
+              const errorMessage = error instanceof Error ? error.message : 'Failed to delete admin user';
+              notification.showError(errorMessage);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
   const handleToggleUserStatus = async (userId: string) => {
     try {
-      setAdminUsers(prev =>
-        prev.map(user =>
-          user.id === userId ? { ...user, isActive: !user.isActive } : user
-        )
-      );
+      const user = adminUsers.find(u => u.id === userId);
+      if (!user) return;
+
+      await adminService.updateAdminUser(userId, {
+        isActive: !user.isActive,
+      });
       notification.showSuccess('User status updated');
+      await loadAdminUsers();
     } catch (error) {
       notification.showError('Failed to update user status');
     }
@@ -504,11 +489,13 @@ export const AdminUserManagementScreen: React.FC = () => {
                 }}
                 variant="outline"
                 style={styles.modalButton}
+                disabled={isSubmitting}
               />
               <Button
-                title={showEditModal ? 'Update' : 'Create'}
+                title={isSubmitting ? 'Processing...' : (showEditModal ? 'Update' : 'Create')}
                 onPress={showEditModal ? handleEditUser : handleCreateUser}
                 style={styles.modalButton}
+                disabled={isSubmitting}
               />
             </View>
           </View>

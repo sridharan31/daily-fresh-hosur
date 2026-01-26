@@ -3,6 +3,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import React, { useCallback, useState } from 'react';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
+import adminService from '../../../lib/services/admin/adminService';
 import orderManagementService, { OrderStatus, OrderWithDetails } from '../../../lib/supabase/services/orderManagement';
 import {
   ActivityIndicator,
@@ -15,6 +16,7 @@ import {
   TouchableOpacity,
   View
 } from '../../components/ui/WebCompatibleComponents';
+import { exportToCSV } from '../../utils/exportUtils';
 
 const OrderManagementScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -60,6 +62,35 @@ const OrderManagementScreen: React.FC = () => {
     setRefreshing(true);
     await loadOrders();
     setRefreshing(false);
+  };
+
+  const handleExportOrders = async () => {
+    try {
+      const data = await adminService.exportOrdersData();
+      // Transform the data to a flatter structure for CSV
+      const exportData = data.map(order => ({
+        order_number: order.order_number,
+        customer_name: order.customer?.full_name || 'N/A',
+        customer_email: order.customer?.email || 'N/A',
+        customer_phone: order.customer?.phone || 'N/A',
+        status: order.status,
+        payment_status: order.payment_status,
+        payment_method: order.payment_method || 'N/A',
+        subtotal: order.subtotal,
+        gst_amount: order.gst_amount,
+        delivery_charge: order.delivery_charge,
+        discount_amount: order.discount_amount,
+        total_amount: order.total_amount,
+        items_count: order.items?.length || 0,
+        delivery_date: order.delivery_slot?.slot_date || 'N/A',
+        delivery_time: order.delivery_slot?.start_ts ? new Date(order.delivery_slot.start_ts).toLocaleTimeString() : 'N/A',
+        created_at: new Date(order.created_at).toLocaleString(),
+        delivery_address: `${order.delivery_address.address_line_1 || order.delivery_address.address_line1 || ''}, ${order.delivery_address.city}, ${order.delivery_address.state} ${order.delivery_address.pincode}`,
+      }));
+      await exportToCSV(exportData, 'orders_export_' + new Date().toISOString().split('T')[0]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to export orders data');
+    }
   };
 
   const filteredOrders = orders.filter(order => {
@@ -138,10 +169,20 @@ const OrderManagementScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Order Management</Text>
-        <View style={styles.orderStats}>
-          <Text style={styles.statsText}>
-            {filteredOrders.length} orders
-          </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={handleExportOrders}
+            disabled={loading || filteredOrders.length === 0}
+          >
+            <Icon name="file-download" size={20} color={loading || filteredOrders.length === 0 ? "#ccc" : "#fff"} />
+            <Text style={[styles.exportButtonText, (loading || filteredOrders.length === 0) && { color: "#ccc" }]}>Export</Text>
+          </TouchableOpacity>
+          <View style={styles.orderStats}>
+            <Text style={styles.statsText}>
+              {filteredOrders.length} orders
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -232,6 +273,25 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   orderStats: {
     alignItems: 'flex-end',

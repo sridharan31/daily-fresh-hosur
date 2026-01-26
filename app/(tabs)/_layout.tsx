@@ -1,91 +1,74 @@
-import { Tabs, router } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Tabs, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useSelector } from 'react-redux';
-import { DailyFreshLogo } from '../../src/components/branding/DailyFreshLogo';
+import { getUserDefaultLocation } from '../../lib/services/customer/locationService';
+import DailyFreshLogo from '../../src/components/branding/DailyFreshLogo';
 import { useAuth } from '../../src/hooks/useAuth';
+import { useCart } from '../../src/hooks/useCart';
 import { useTheme } from '../../src/hooks/useTheme';
 
-
-
-// Custom Header Component
-const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPress }: { 
-  title: string; 
-  showSearch?: boolean; 
-  showCart?: boolean;
-  onFilterPress?: () => void;
-}) => {
-  const { user } = useAuth();
+// Custom header component
+const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPress = () => { } }) => {
+  const router = useRouter();
   const { colors, isDark, toggleTheme } = useTheme();
-  const styles = createStyles(colors);
-  const cart = useSelector((state: any) => state.cart?.items || []);
-  const cartItemCount = Array.isArray(cart) ? cart.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) : 0;
+  const { cartItemCount } = useCart();
+  const { user, signOut } = useAuth();
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const styles = createStyles(colors);
+  const [locationName, setLocationName] = useState('Hosur, TN');
+
+  useEffect(() => {
+    const fetchLocation = async () => {
+      if (user?.id) {
+        try {
+          const loc = await getUserDefaultLocation(user.id);
+          if (loc) {
+            setLocationName(`${loc.city}, ${loc.state?.split(' ')[0]}`);
+          }
+        } catch (e) {
+          console.log('Error fetching location', e);
+        }
+      }
+    };
+    fetchLocation();
+  }, [user]);
 
   const handleNotifications = () => {
-    console.log('Notifications pressed');
-    // Navigate to notifications screen
     router.push('/notifications');
   };
 
   const handleCart = () => {
-    console.log('Cart pressed');
-    router.push('/(tabs)/cart');
+    router.push('/cart');
   };
 
   const handleProfile = () => {
     setShowProfileDropdown(!showProfileDropdown);
   };
 
-  const handleLogin = () => {
-    setShowProfileDropdown(false);
-    router.push('/');
-  };
-
-  const { signOut } = useAuth();
-
-  const handleLogout = () => {
-    setShowProfileDropdown(false);
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Logout', 
-          style: 'destructive',
-          onPress: async () => {
-            // Dispatch logout action which clears state and persisted data
-            try {
-              await signOut();
-            } catch (e) {
-              console.warn('Logout failed locally:', e);
-            }
-            // Navigate to login screen
-            router.replace('/');
-          }
-        }
-      ]
-    );
-  };
-
   const handleMyProfile = () => {
     setShowProfileDropdown(false);
-    router.push('/(tabs)/profile');
+    router.push('/profile');
   };
 
   const handleMyOrders = () => {
     setShowProfileDropdown(false);
-    router.push('/(tabs)/orders');
+    router.push('/orders');
+  };
+
+  const handleLogout = async () => {
+    setShowProfileDropdown(false);
+    await signOut();
+    router.replace('/login');
+  };
+
+  const handleLogin = () => {
+    setShowProfileDropdown(false);
+    router.push('/(auth)/login');
   };
 
   const handleThemeToggle = () => {
-    setShowProfileDropdown(false);
-    if (toggleTheme) {
-      toggleTheme();
-    }
+    toggleTheme();
   };
 
   return (
@@ -97,7 +80,7 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
             <Icon name="location-on" size={16} color={colors.primary} />
             <View>
               <Text style={styles.deliverToText}>Deliver to</Text>
-              <Text style={styles.locationText}>New York, NY</Text>
+              <Text style={styles.locationText} numberOfLines={1}>{locationName}</Text>
             </View>
           </View>
         </View>
@@ -105,7 +88,7 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
         {/* Center Section */}
         <View style={styles.headerCenter}>
           {title === "Daily Fresh Hosur" ? (
-            <DailyFreshLogo width={140} height={50} variant="full" />
+            <DailyFreshLogo width={140} height={50} />
           ) : (
             <Text style={styles.headerTitle}>{title}</Text>
           )}
@@ -132,15 +115,15 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
           )}
 
           <View style={styles.profileContainer}>
-            <TouchableOpacity 
-              style={styles.profileButton} 
+            <TouchableOpacity
+              style={styles.profileButton}
               onPress={handleProfile}
             >
               <Text style={styles.profileInitial}>
                 {user?.firstName?.charAt(0) || 'G'}
               </Text>
             </TouchableOpacity>
-            
+
             {/* Profile Dropdown */}
             {showProfileDropdown && (
               <View style={styles.dropdown}>
@@ -149,21 +132,21 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
                     <Icon name="person" size={20} color={colors.text} />
                     <Text style={styles.dropdownText}>My Profile</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity style={styles.dropdownItem} onPress={handleMyOrders}>
                     <Icon name="receipt" size={20} color={colors.text} />
                     <Text style={styles.dropdownText}>My Orders</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity style={styles.dropdownItem} onPress={handleThemeToggle}>
                     <Icon name={isDark ? "light-mode" : "dark-mode"} size={20} color={colors.text} />
                     <Text style={styles.dropdownText}>
                       {isDark ? "Light Mode" : "Dark Mode"}
                     </Text>
                   </TouchableOpacity>
-                  
+
                   <View style={styles.dropdownDivider} />
-                  
+
                   {user ? (
                     <TouchableOpacity style={styles.dropdownItem} onPress={handleLogout}>
                       <Icon name="logout" size={20} color={colors.error} />
@@ -194,11 +177,11 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
           </TouchableOpacity>
         </View>
       )}
-      
+
       {/* Overlay to close dropdown */}
       {showProfileDropdown && (
-        <TouchableOpacity 
-          style={styles.overlay} 
+        <TouchableOpacity
+          style={styles.overlay}
           onPress={() => setShowProfileDropdown(false)}
         />
       )}
@@ -208,18 +191,15 @@ const CustomHeader = ({ title, showSearch = false, showCart = true, onFilterPres
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  
+
   // Create a filter handler for the home screen
   const handleHomeFilter = () => {
-    console.log('Filter button pressed on home screen');
-    // This will be picked up by the home screen component
-    // We can use a global state or event system for this, but for now
-    // let's create a simple solution by storing filter state globally
+    // Dispatch event for web/global listeners
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('openHomeFilters'));
     }
   };
-  
+
   return (
     <Tabs
       screenOptions={{
@@ -258,7 +238,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          title: 'Orders',  
+          title: 'Orders',
           tabBarIcon: ({ color, size }) => (
             <Icon name="receipt" size={size} color={color} />
           ),

@@ -13,20 +13,20 @@ import {
   View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../../lib/store';
-import { fetchAdminCustomers } from '../../../lib/store/slices/adminSlice';
+import adminService, { CustomerMetrics } from '../../../lib/services/admin/adminService';
 import { AdminCustomer } from '../../../lib/types/admin';
+import { exportToCSV } from '../../../src/utils/exportUtils';
 
 const CustomerManagementScreen: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { customers, customersLoading } = useSelector((state: RootState) => state.admin);
-  
+  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  const [metrics, setMetrics] = useState<CustomerMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSegment, setSelectedSegment] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<AdminCustomer | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const segments = [
     { key: 'all', label: 'All Customers', color: '#666' },
@@ -40,26 +40,36 @@ const CustomerManagementScreen: React.FC = () => {
     loadCustomers();
   }, []);
 
-  const loadCustomers = useCallback(() => {
-    dispatch(fetchAdminCustomers({}));
-  }, [dispatch]);
+  const loadCustomers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch metrics
+      const metricsData = await adminService.getCustomerMetrics();
+      setMetrics(metricsData);
+
+      // Fetch customers with filters
+      const customersData = await adminService.fetchCustomers({
+        searchQuery,
+        segment: selectedSegment as any,
+      });
+
+      setCustomers(customersData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load customers';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedSegment]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadCustomers();
     setRefreshing(false);
   }, [loadCustomers]);
-
-  const filteredCustomers = customers.filter((customer) => {
-    const matchesSearch = 
-      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      customer.phone.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesSegment = selectedSegment === 'all' || customer.segment === selectedSegment;
-    
-    return matchesSearch && matchesSegment;
-  });
 
   const getCustomerSegmentColor = (segment: string) => {
     const segmentData = segments.find(s => s.key === segment);
@@ -80,9 +90,14 @@ const CustomerManagementScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => {
-            // In a real app, you would dispatch an action to update customer status
-            Alert.alert('Success', `Customer ${action}d successfully`);
+          onPress: async () => {
+            try {
+              await adminService.updateCustomerStatus(customer.id, !customer.isActive);
+              Alert.alert('Success', `Customer ${action}d successfully`);
+              await loadCustomers();
+            } catch (err) {
+              Alert.alert('Error', 'Failed to update customer status');
+            }
           },
         },
       ]
@@ -90,32 +105,34 @@ const CustomerManagementScreen: React.FC = () => {
   };
 
   const renderCustomerStats = () => {
-    const totalCustomers = customers.length;
-    const newCustomers = customers.filter(c => c.segment === 'new').length;
-    const regularCustomers = customers.filter(c => c.segment === 'regular').length;
-    const vipCustomers = customers.filter(c => c.segment === 'vip').length;
-    const averageOrderValue = customers.reduce((sum, c) => sum + c.averageOrderValue, 0) / (totalCustomers || 1);
+    if (!metrics) {
+      return (
+        <View style={styles.statsContainer}>
+          <ActivityIndicator size="small" color="#4CAF50" />
+        </View>
+      );
+    }
 
     return (
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalCustomers}</Text>
+          <Text style={styles.statValue}>{metrics.totalCustomers}</Text>
           <Text style={styles.statLabel}>Total Customers</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#4CAF50' }]}>{newCustomers}</Text>
+          <Text style={[styles.statValue, { color: '#4CAF50' }]}>{metrics.newCustomers}</Text>
           <Text style={styles.statLabel}>New</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#2196F3' }]}>{regularCustomers}</Text>
+          <Text style={[styles.statValue, { color: '#2196F3' }]}>{metrics.regularCustomers}</Text>
           <Text style={styles.statLabel}>Regular</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#FF9800' }]}>{vipCustomers}</Text>
+          <Text style={[styles.statValue, { color: '#FF9800' }]}>{metrics.vipCustomers}</Text>
           <Text style={styles.statLabel}>VIP</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>₹{Math.round(averageOrderValue)}</Text>
+          <Text style={styles.statValue}>₹{Math.round(metrics.averageOrderValue)}</Text>
           <Text style={styles.statLabel}>Avg Order</Text>
         </View>
       </View>
@@ -289,12 +306,22 @@ const CustomerManagementScreen: React.FC = () => {
     </Modal>
   );
 
+  // ... inside component (add handleExportData)
+  const handleExportData = async () => {
+    try {
+      const data = await adminService.exportCustomersData();
+      await exportToCSV(data, 'customers_export_' + new Date().toISOString().split('T')[0]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to export data');
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Customer Management</Text>
-        <TouchableOpacity style={styles.exportButton}>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExportData}>
           <Icon name="file-download" size={20} color="#4CAF50" />
           <Text style={styles.exportText}>Export</Text>
         </TouchableOpacity>
@@ -340,14 +367,22 @@ const CustomerManagementScreen: React.FC = () => {
       </ScrollView>
 
       {/* Customers List */}
-      {customersLoading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.loadingText}>Loading customers...</Text>
         </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Icon name="error-outline" size={64} color="#F44336" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadCustomers}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
-          data={filteredCustomers}
+          data={customers}
           renderItem={renderCustomerItem}
           keyExtractor={(item) => item.id}
           style={styles.customersList}
@@ -596,6 +631,31 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#F44336',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
   modalContainer: {
     flex: 1,

@@ -71,14 +71,7 @@ const ProductDetailsScreen: React.FC = () => {
   const handleAddToCart = async () => {
     try {
       await cart.addItem(product, quantity);
-      Alert.alert(
-        'Added to Cart',
-        `${quantity} ${product.unit} of ${product.name} added to cart.`,
-        [
-          { text: 'Continue Shopping', style: 'cancel' },
-          { text: 'View Cart', onPress: () => navigation.navigate('Cart' as never) },
-        ]
-      );
+      // Removed alert for smoother experience
     } catch (error) {
       console.error('Failed to add to cart:', error);
       Alert.alert('Error', 'Failed to add item to cart. Please try again.');

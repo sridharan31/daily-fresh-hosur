@@ -1,6 +1,5 @@
 import { CartItem as DatabaseCartItem, Product } from '../../types/database';
 import { supabase } from '../client';
-import { safeInsert, safeUpdate } from '../utils/databaseUtils';
 
 export type CartItem = DatabaseCartItem & {
   product: Product;
@@ -36,30 +35,37 @@ export const cartService = {
   // Add item to cart
   async addToCart(userId: string, productId: string, quantity: number): Promise<void> {
     try {
-      // Check if product is already in the cart
+      // Get current authenticated user to ensure we're using the right ID
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Check if product is already in the cart (using auth user ID)
       const { data: existingItem } = await supabase
         .from('cart_items')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', authUser.id)
         .eq('product_id', productId)
         .maybeSingle();
 
       if (existingItem) {
         // Update quantity if product is already in cart
-        const query = supabase.from('cart_items').eq('id', existingItem.id);
-        const { error: updateError } = await safeUpdate(query, { 
-          quantity: existingItem.quantity + quantity 
-        });
+        const { error: updateError } = await supabase
+          .from('cart_items' as any)
+          .update({ quantity: existingItem.quantity + quantity } as any)
+          .eq('id', existingItem.id);
 
         if (updateError) throw updateError;
       } else {
-        // Insert new cart item if product is not in cart
-        const query = supabase.from('cart_items');
-        const { error: insertError } = await safeInsert(query, {
-          user_id: userId,
-          product_id: productId,
-          quantity: quantity
-        });
+        // Insert new cart item - user_id will be set automatically by database trigger
+        const { error: insertError } = await supabase
+          .from('cart_items' as any)
+          .insert({
+            product_id: productId,
+            quantity: quantity
+          } as any);
 
         if (insertError) throw insertError;
       }
@@ -73,9 +79,9 @@ export const cartService = {
   async updateCartItemQuantity(cartItemId: string, quantity: number): Promise<void> {
     try {
       // We need to use a filter first, then use our safeUpdate
-      const baseQuery = supabase.from('cart_items');
-      const { error } = await baseQuery
-        .update({ quantity }) // This is now type-safe with our DatabaseCartItem type
+      const { error } = await supabase
+        .from('cart_items' as any)
+        .update({ quantity } as any)
         .eq('id', cartItemId);
 
       if (error) throw error;

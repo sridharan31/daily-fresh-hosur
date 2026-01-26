@@ -14,10 +14,9 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '../../../lib/store';
-import { fetchAdminProducts, updateProductStatus } from '../../../lib/store/slices/adminSlice';
+import adminService, { InventoryMetrics } from '../../../lib/services/admin/adminService';
 import { ProductCategory } from '../../../lib/types/product';
+import { exportToCSV } from '../../../src/utils/exportUtils';
 
 interface InventoryItem {
   id: string;
@@ -33,9 +32,9 @@ interface InventoryItem {
 }
 
 const InventoryScreen: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const { products, productsLoading } = useSelector((state: RootState) => state.admin);
-
+  const [products, setProducts] = useState<InventoryItem[]>([]);
+  const [metrics, setMetrics] = useState<InventoryMetrics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -43,6 +42,7 @@ const InventoryScreen: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateQuantity, setUpdateQuantity] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const categories: (string | ProductCategory)[] = ['all', 'fruits', 'vegetables', 'dairy', 'grains', 'beverages'];
   const filterTypes = [
@@ -57,9 +57,47 @@ const InventoryScreen: React.FC = () => {
     loadInventory();
   }, []);
 
-  const loadInventory = useCallback(() => {
-    dispatch(fetchAdminProducts({}));
-  }, [dispatch]);
+  const loadInventory = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch metrics
+      const metricsData = await adminService.getInventoryMetrics();
+      setMetrics(metricsData);
+
+      // Fetch products
+      const status = filterType === 'all' ? 'all' : filterType;
+      const category = selectedCategory === 'all' ? undefined : selectedCategory;
+      const productsData = await adminService.fetchInventoryProducts({
+        searchQuery,
+        category: category as ProductCategory | undefined,
+        status: status as any,
+      });
+
+      // Transform to inventory items
+      const items: InventoryItem[] = productsData.map(p => ({
+        id: p.id,
+        name: p.name_en,
+        category: p.category_en as ProductCategory,
+        stock: p.stock_quantity,
+        minStock: 10, // Default min stock
+        price: p.price,
+        unit: p.unit || 'kg',
+        lastRestocked: p.updated_at || new Date().toISOString(),
+        isActive: p.is_active,
+        image: p.images?.[0],
+      }));
+
+      setProducts(items);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load inventory';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedCategory, filterType]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -68,18 +106,7 @@ const InventoryScreen: React.FC = () => {
   }, [loadInventory]);
 
   // Transform admin products to inventory items
-  const inventoryItems: InventoryItem[] = products.map(product => ({
-    id: product.id,
-    name: product.name,
-    category: product.category,
-    stock: product.stock,
-    minStock: product.minStock, // From database
-    price: product.price,
-    unit: product.unit,
-    lastRestocked: product.lastRestocked, // From database
-    isActive: product.isActive,
-    image: product.images?.[0],
-  }));
+  const inventoryItems: InventoryItem[] = products;
 
   const filteredItems = inventoryItems.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -126,13 +153,21 @@ const InventoryScreen: React.FC = () => {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          onPress: () => dispatch(updateProductStatus({ productId: item.id, isActive: !item.isActive })),
+          onPress: async () => {
+            try {
+              await adminService.updateProductStatus(item.id, !item.isActive);
+              Alert.alert('Success', 'Product status updated');
+              await loadInventory();
+            } catch (err) {
+              Alert.alert('Error', 'Failed to update product status');
+            }
+          },
         },
       ]
     );
   };
 
-  const handleStockUpdate = () => {
+  const handleStockUpdate = async () => {
     if (!selectedProduct || !updateQuantity) return;
 
     const newStock = parseInt(updateQuantity);
@@ -141,35 +176,53 @@ const InventoryScreen: React.FC = () => {
       return;
     }
 
-    // In a real app, you would dispatch an action to update stock
-    Alert.alert('Success', `Stock updated to ${newStock} ${selectedProduct.unit}`);
-    setShowUpdateModal(false);
-    setSelectedProduct(null);
-    setUpdateQuantity('');
+    try {
+      await adminService.updateProductStock(selectedProduct.id, newStock);
+      Alert.alert('Success', `Stock updated to ${newStock} ${selectedProduct.unit}`);
+      setShowUpdateModal(false);
+      setSelectedProduct(null);
+      setUpdateQuantity('');
+      await loadInventory();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update stock');
+    }
+  };
+
+  // ... inside component
+  const handleExportData = async () => {
+    try {
+      const data = await adminService.exportInventoryData();
+      await exportToCSV(data, 'inventory_export_' + new Date().toISOString().split('T')[0]);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to export data');
+    }
   };
 
   const renderStockStats = () => {
-    const totalItems = inventoryItems.length;
-    const lowStockItems = inventoryItems.filter(item => item.stock > 0 && item.stock <= item.minStock).length;
-    const outOfStockItems = inventoryItems.filter(item => item.stock === 0).length;
-    const totalValue = inventoryItems.reduce((sum, item) => sum + (item.stock * item.price), 0);
+    if (!metrics) {
+      return (
+        <View style={styles.statsContainer}>
+          <ActivityIndicator size="small" color="#4CAF50" />
+        </View>
+      );
+    }
 
     return (
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>{totalItems}</Text>
+          <Text style={styles.statValue}>{metrics.totalItems}</Text>
           <Text style={styles.statLabel}>Total Items</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#FF9800' }]}>{lowStockItems}</Text>
+          <Text style={[styles.statValue, { color: '#FF9800' }]}>{metrics.lowStockItems}</Text>
           <Text style={styles.statLabel}>Low Stock</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#F44336' }]}>{outOfStockItems}</Text>
+          <Text style={[styles.statValue, { color: '#F44336' }]}>{metrics.outOfStockItems}</Text>
           <Text style={styles.statLabel}>Out of Stock</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statValue}>₹{totalValue.toFixed(0)}</Text>
+          <Text style={styles.statValue}>₹{metrics.totalInventoryValue.toFixed(0)}</Text>
           <Text style={styles.statLabel}>Total Value</Text>
         </View>
       </View>
@@ -294,7 +347,7 @@ const InventoryScreen: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Inventory Management</Text>
-        <TouchableOpacity style={styles.exportButton}>
+        <TouchableOpacity style={styles.exportButton} onPress={handleExportData}>
           <Icon name="file-download" size={20} color="#4CAF50" />
           <Text style={styles.exportText}>Export</Text>
         </TouchableOpacity>
@@ -363,10 +416,18 @@ const InventoryScreen: React.FC = () => {
       </ScrollView>
 
       {/* Inventory List */}
-      {productsLoading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4CAF50" />
           <Text style={styles.loadingText}>Loading inventory...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Icon name="error-outline" size={64} color="#F44336" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadInventory}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -635,6 +696,31 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#F44336',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

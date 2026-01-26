@@ -1,14 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -72,7 +72,7 @@ const MOCK_PRODUCTS: Record<string, Product> = {
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { addItem, getItemQuantity, updateItemQuantity } = useCart();
-  
+
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -88,10 +88,10 @@ export default function ProductDetailScreen() {
     setIsLoading(true);
     try {
       console.log(`Loading product details for ID: ${id}`);
-      
+
       // Import productService here to avoid circular dependencies
       const productService = require('../../lib/services/productService').default;
-      
+
       // Try to fetch the product from Supabase first
       let productData = null;
       try {
@@ -100,7 +100,7 @@ export default function ProductDetailScreen() {
       } catch (error) {
         console.error('Error fetching from Supabase:', error);
       }
-      
+
       // If no product found, fall back to mock data
       if (!productData) {
         console.log('Falling back to mock data');
@@ -113,11 +113,11 @@ export default function ProductDetailScreen() {
           price: productData.price,
           originalPrice: productData.mrp,
           unit: productData.unit,
-          category: { 
-            id: productData.category_id || '', 
-            name: productData.category_en || '', 
-            image: '', 
-            isActive: true 
+          category: {
+            id: productData.category_id || '',
+            name: productData.category_en || '',
+            image: '',
+            isActive: true
           },
           images: productData.images || [],
           stock: productData.stock_quantity,
@@ -131,9 +131,9 @@ export default function ProductDetailScreen() {
           updatedAt: productData.updated_at
         };
       }
-      
+
       setProduct(productData);
-      
+
       // Check if already in cart
       const cartQuantity = getItemQuantity(productData.id);
       if (cartQuantity > 0) {
@@ -149,7 +149,7 @@ export default function ProductDetailScreen() {
 
   const handleAddToCart = async () => {
     if (!product) return;
-    
+
     setAddingToCart(true);
     try {
       await addItem(product, quantity);
@@ -158,8 +158,8 @@ export default function ProductDetailScreen() {
         `${product.name} (${quantity} x ${product.unit}) added to cart.`,
         [
           { text: 'Continue Shopping', style: 'default' },
-          { 
-            text: 'View Cart', 
+          {
+            text: 'View Cart',
             style: 'default',
             onPress: () => router.push('/(tabs)/cart')
           }
@@ -175,9 +175,9 @@ export default function ProductDetailScreen() {
 
   const handleUpdateQuantity = async (newQuantity: number) => {
     if (!product || newQuantity < 1) return;
-    
+
     setQuantity(newQuantity);
-    
+
     // If already in cart, update cart quantity
     const cartQuantity = getItemQuantity(product.id);
     if (cartQuantity > 0) {
@@ -195,9 +195,9 @@ export default function ProductDetailScreen() {
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-AE', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'AED',
+      currency: 'INR',
     }).format(price);
   };
 
@@ -231,7 +231,7 @@ export default function ProductDetailScreen() {
             />
           ))}
         </ScrollView>
-        
+
         {/* Image Indicators */}
         {product.images.length > 1 && (
           <View style={styles.imageIndicators}>
@@ -246,7 +246,7 @@ export default function ProductDetailScreen() {
             ))}
           </View>
         )}
-        
+
         {/* Favorite Button */}
         <TouchableOpacity
           style={styles.favoriteButton}
@@ -292,9 +292,9 @@ export default function ProductDetailScreen() {
         >
           <Icon name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>Product Details</Text>
-        
+
         <TouchableOpacity style={styles.shareButton}>
           <Icon name="share" size={24} color="#333" />
         </TouchableOpacity>
@@ -309,7 +309,7 @@ export default function ProductDetailScreen() {
           <View style={styles.titleSection}>
             <Text style={styles.productName}>{product.name}</Text>
             <Text style={styles.productUnit}>Per {product.unit}</Text>
-            
+
             {/* Badges */}
             <View style={styles.badges}>
               {product.isOrganic && (
@@ -317,7 +317,7 @@ export default function ProductDetailScreen() {
                   <Text style={styles.organicText}>ORGANIC</Text>
                 </View>
               )}
-              
+
               {getDiscountPercentage() > 0 && (
                 <View style={styles.discountBadge}>
                   <Text style={styles.discountText}>-{getDiscountPercentage()}%</Text>
@@ -337,7 +337,7 @@ export default function ProductDetailScreen() {
                 ({product.reviewCount} reviews)
               </Text>
             </View>
-            
+
             <TouchableOpacity onPress={() => router.push(`/reviews/${product.id}` as any)}>
               <Text style={styles.readReviews}>Read Reviews</Text>
             </TouchableOpacity>

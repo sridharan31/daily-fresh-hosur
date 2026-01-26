@@ -1,14 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from '../../components/ui/WebCompatibleComponents';
 
 import { router } from 'expo-router';
@@ -91,7 +91,7 @@ export const HomeScreen: React.FC = () => {
       };
       const supabaseProducts = await productService.getFeaturedProducts(10);
       const appProducts = adaptProductsForApp(supabaseProducts);
-      
+
       setFeaturedProducts(appProducts);
       setFilteredProducts(appProducts);
     } catch (error) {
@@ -112,13 +112,13 @@ export const HomeScreen: React.FC = () => {
 
     // Apply category filter
     if (filters.category.length > 0) {
-      filtered = filtered.filter(product => 
+      filtered = filtered.filter(product =>
         filters.category.includes(product.category.name)
       );
     }
 
     // Apply price range filter
-    filtered = filtered.filter(product => 
+    filtered = filtered.filter(product =>
       product.price >= filters.priceRange.min && product.price <= filters.priceRange.max
     );
 
@@ -204,21 +204,7 @@ export const HomeScreen: React.FC = () => {
   const handleAddToCart = async (product: Product, quantity: number = 1) => {
     try {
       await addItem(product, quantity);
-      const newQuantity = getItemQuantity(product.id) + quantity;
-      Alert.alert(
-        'Added to Cart!', 
-        `${product.name} (${quantity} x ${product.unit}) added to cart.\nCart total: ${newQuantity} items`,
-        [
-          { text: 'Continue Shopping', style: 'default' },
-          { 
-            text: 'View Cart', 
-            style: 'default',
-            onPress: () => {
-              router.push('/(tabs)/cart');
-            }
-          }
-        ]
-      );
+      // No alert, silent add for better UX
     } catch (error) {
       console.error('Error adding to cart:', error);
       Alert.alert('Error', 'Failed to add item to cart. Please try again.');
@@ -231,10 +217,12 @@ export const HomeScreen: React.FC = () => {
       'Please sign in to access all features and save your preferences.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign In', onPress: () => {
-          // This would navigate to login screen
-          Alert.alert('Login', 'Login screen would open here. This demo shows the grocery app functionality.');
-        }}
+        {
+          text: 'Sign In', onPress: () => {
+            // This would navigate to login screen
+            Alert.alert('Login', 'Login screen would open here. This demo shows the grocery app functionality.');
+          }
+        }
       ]
     );
   };
@@ -243,14 +231,14 @@ export const HomeScreen: React.FC = () => {
     // Get emoji based on category name
     const categoryKey = item.name.toLowerCase().replace(/\s+/g, '_');
     const emoji = CATEGORY_EMOJI_MAP[categoryKey] || '🛍️';
-    
+
     return (
       <TouchableOpacity
         style={styles.categoryCard}
         onPress={() => handleCategoryPress(item)}
       >
         <Text style={styles.categoryEmoji}>{emoji}</Text>
-        <Text 
+        <Text
           style={styles.categoryName}
           numberOfLines={2}
           ellipsizeMode="tail"
@@ -323,7 +311,7 @@ export const HomeScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActions}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={handleMyOrders}
               accessible={true}
@@ -334,7 +322,7 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.quickActionEmoji}>📦</Text>
               <Text style={styles.quickActionText}>My Orders</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={handleFavorites}
               accessible={true}
@@ -345,7 +333,7 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.quickActionEmoji}>❤️</Text>
               <Text style={styles.quickActionText}>Favorites</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={handleOffers}
               accessible={true}
@@ -356,7 +344,7 @@ export const HomeScreen: React.FC = () => {
               <Text style={styles.quickActionEmoji}>🏷️</Text>
               <Text style={styles.quickActionText}>Offers</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickActionCard}
               onPress={handleSupport}
               accessible={true}

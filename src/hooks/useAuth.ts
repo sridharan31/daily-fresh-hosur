@@ -36,20 +36,13 @@ export const useAuth = () => {
     async () => {
       try {
         // Clear persisted storage keys used by auth
-        if (typeof window !== 'undefined') {
-          try { localStorage.removeItem('auth_token'); } catch {}
-          try { localStorage.removeItem('user_data'); } catch {}
-        }
-
-        // Purge persisted redux store if persistor exists
-        try {
-          if (persistor && typeof persistor.purge === 'function') {
-            // purge returns a Promise
-            await persistor.purge();
-          }
+        try { 
+          // Use AsyncStorage if available, or just proceed with dispatch
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('user_data');
         } catch (e) {
-          // ignore persistor errors
-          console.warn('Persistor purge failed', e);
+            // Ignore errors if AsyncStorage is not available or fails
         }
 
         // Dispatch logout to reset in-memory state
